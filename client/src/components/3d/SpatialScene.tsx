@@ -22,7 +22,6 @@ export const SpatialScene: React.FC = () => {
     blockExitA,
     blockCorridor,
     clearObstacle,
-    timelinePhase,
   } = useSimulation();
 
   return (
@@ -30,46 +29,47 @@ export const SpatialScene: React.FC = () => {
       {/* 3D WebGL Canvas */}
       <Canvas
         shadows
-        camera={{ position: [0, 18, 16], fov: 45 }}
+        camera={{ position: [0, 16, 17], fov: 48 }}
         gl={{ antialias: true, alpha: false }}
         className="w-full h-full"
       >
         <color attach="background" args={['#07090e']} />
-        <fog attach="fog" args={['#07090e', 22, 45]} />
+        <fog attach="fog" args={['#07090e', 24, 50]} />
 
-        {/* Ambient & Directional Lights */}
-        <ambientLight intensity={0.45} />
+        {/* Ambient & Directional Lights for crisp architectural visibility */}
+        <ambientLight intensity={0.65} />
         <directionalLight
-          position={[12, 22, 10]}
-          intensity={1.1}
+          position={[12, 24, 12]}
+          intensity={1.35}
           castShadow
           shadow-mapSize-width={1024}
           shadow-mapSize-height={1024}
           shadow-camera-far={50}
-          shadow-camera-left={-15}
-          shadow-camera-right={15}
-          shadow-camera-top={15}
-          shadow-camera-bottom={-15}
+          shadow-camera-left={-16}
+          shadow-camera-right={16}
+          shadow-camera-top={16}
+          shadow-camera-bottom={-16}
           shadow-bias={-0.0005}
         />
-        <pointLight position={[-8, 6, -6]} intensity={0.5} color="#38bdf8" />
-        <pointLight position={[8, 6, 6]} intensity={0.5} color="#818cf8" />
+        <pointLight position={[-9, 7, -6]} intensity={0.7} color="#38bdf8" />
+        <pointLight position={[9, 7, 6]} intensity={0.7} color="#818cf8" />
+        <pointLight position={[0, 8, 0]} intensity={0.5} color="#00f0ff" />
 
         <Suspense fallback={null}>
           <CameraController viewMode={cameraView} />
           <OrbitControls
             enableDamping
             dampingFactor={0.05}
-            maxPolarAngle={Math.PI / 2.15}
+            maxPolarAngle={Math.PI / 2.12}
             minDistance={8}
-            maxDistance={35}
+            maxDistance={38}
           />
 
           {/* Floor & Architectural Elements */}
           <IndoorFloor rooms={rooms} />
           <WallSegments walls={walls} />
 
-          {/* Emergency Exit Portals */}
+          {/* Emergency Exit Portals (Exit A, Exit B, Exit C) */}
           {exits.map(exit => (
             <ExitPortal
               key={exit.id}
@@ -94,33 +94,33 @@ export const SpatialScene: React.FC = () => {
             onMoveToNeutral={clearObstacle}
           />
 
-          {/* 10 Simulated People Agents */}
+          {/* 10 Simulated People Agents with Dynamic Glowing Path Ribbons */}
           {agents.map(agent => (
             <AgentMesh key={agent.id} agent={agent} />
           ))}
         </Suspense>
       </Canvas>
 
-      {/* Viewport Floating HUD - Camera & State Tools */}
-      <div className="absolute top-4 left-4 z-10 flex items-center space-x-2">
-        <div className="flex bg-slate-900/80 backdrop-blur-md border border-slate-700/60 rounded-lg p-1 shadow-lg">
+      {/* Viewport Floating HUD - Camera Controls (Bottom Left of Canvas) */}
+      <div className="absolute bottom-24 left-4 z-20 flex items-center space-x-2">
+        <div className="flex bg-slate-950/85 backdrop-blur-md border border-slate-700/70 rounded-xl p-1 shadow-2xl">
           <button
             onClick={() => setCameraView('perspective')}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all ${
+            className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-mono font-medium transition-all ${
               cameraView === 'perspective'
-                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm shadow-cyan-500/20'
+                ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-500/50 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
             title="Perspective 3D Orbit View"
           >
             <Eye className="w-3.5 h-3.5" />
-            <span>Perspective</span>
+            <span>3D Orbit</span>
           </button>
           <button
             onClick={() => setCameraView('topdown')}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all ${
+            className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-mono font-medium transition-all ${
               cameraView === 'topdown'
-                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm shadow-cyan-500/20'
+                ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-500/50 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
             title="Top-down Tactical Grid View"
@@ -130,9 +130,9 @@ export const SpatialScene: React.FC = () => {
           </button>
           <button
             onClick={() => setCameraView('isometric')}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all ${
+            className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-mono font-medium transition-all ${
               cameraView === 'isometric'
-                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm shadow-cyan-500/20'
+                ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-500/50 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
             title="Isometric Angled View"
@@ -143,34 +143,11 @@ export const SpatialScene: React.FC = () => {
         </div>
       </div>
 
-      {/* Viewport Top Right Status Pill */}
-      <div className="absolute top-4 right-4 z-10 flex items-center space-x-2">
-        <div
-          className={`flex items-center space-x-2 px-3 py-1.5 rounded-full border backdrop-blur-md shadow-lg text-xs font-mono font-medium ${
-            obstacle.isBlockingExitA
-              ? 'bg-amber-950/80 text-amber-300 border-amber-500/60 shadow-amber-500/20'
-              : 'bg-emerald-950/80 text-emerald-300 border-emerald-500/60 shadow-emerald-500/20'
-          }`}
-        >
-          {obstacle.isBlockingExitA ? (
-            <>
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-              <span>HYPOTHETICAL ACTION: EXIT A BLOCKED</span>
-            </>
-          ) : (
-            <>
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>BASELINE ENVIRONMENT (CLEAR)</span>
-            </>
-          )}
-        </div>
-      </div>
-
       {/* Floating Center Interaction Hint */}
-      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
-        <div className="bg-slate-900/80 backdrop-blur-md border border-slate-700/50 text-slate-300 px-4 py-1.5 rounded-full text-xs font-medium shadow-xl flex items-center space-x-2">
+      <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-10 pointer-events-none hidden md:block">
+        <div className="bg-slate-950/80 backdrop-blur-md border border-slate-700/60 text-slate-300 px-4 py-1.5 rounded-full text-[11px] font-mono shadow-xl flex items-center space-x-2">
           <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-          <span>Click obstacle or toggle controls to test "What if Exit A becomes blocked?"</span>
+          <span>Click obstacle or use Step 1 to test: "What if Exit A becomes blocked?"</span>
         </div>
       </div>
     </div>
