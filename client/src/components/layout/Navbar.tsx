@@ -13,6 +13,7 @@ import {
   User,
   Sparkles,
   LayoutDashboard,
+  UploadCloud,
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
@@ -22,6 +23,7 @@ export const Navbar: React.FC = () => {
   const { blockExitA, simulateFuture } = useSimulation();
 
   const navLinks = [
+    { path: '/upload-space', label: 'Upload Space', icon: UploadCloud },
     { path: '/simulator', label: 'Simulator', icon: Box },
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/scenarios', label: 'Scenarios', icon: Layers },

@@ -7,6 +7,7 @@ class MemoryStore {
       users: [],
       scenarios: [],
       simulations: [],
+      environments: [],
     };
     this.isMemory = true;
     console.log('[DB] Initialized in-memory resilient document database.');

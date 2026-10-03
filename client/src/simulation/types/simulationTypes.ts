@@ -26,6 +26,7 @@ export interface ExitZone {
   isPrimary: boolean;
   width?: number;
   capacity: string;
+  type?: 'emergency' | 'normal';
 }
 
 export interface WallSegment {
@@ -52,7 +53,8 @@ export interface ObstacleState {
   position: [number, number, number];
   scale: [number, number, number];
   isBlockingExitA: boolean;
-  targetBlock: 'exit-a' | 'corridor' | 'none';
+  targetBlock: string;
+  movable?: boolean;
 }
 
 export type RiskLevel = 'Low' | 'Medium' | 'High' | 'Critical';
@@ -101,6 +103,7 @@ export interface SimulationRun {
   _id?: string;
   id?: string;
   scenarioId: string;
+  environmentId?: string | null;
   scenarioTitle: string;
   actionPerformed: string;
   initialState: any;
@@ -113,4 +116,109 @@ export interface SimulationRun {
   riskLevel: RiskLevel;
   simulationTimestamp: string;
   userId?: string;
+}
+
+// User Space Environment Data Models (Phase 3)
+export interface MapWall {
+  id: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+export interface MapRoom {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface MapCorridor {
+  id: string;
+  points: Array<[number, number]>;
+}
+
+export interface MapDoor {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  connectedAreas?: string[];
+}
+
+export interface MapExit {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  type: 'emergency' | 'normal';
+}
+
+export interface MapObstacle {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  movable: boolean;
+}
+
+export interface MapPerson {
+  id: string;
+  x: number;
+  y: number;
+  label: string;
+}
+
+export interface Environment {
+  _id?: string;
+  id?: string;
+  userId?: string;
+  name: string;
+  sourceType: 'video' | 'images' | 'demo';
+  sourceFiles: Array<{
+    originalName: string;
+    filename: string;
+    path: string;
+    size: number;
+    mimetype: string;
+    isImage?: boolean;
+    isVideo?: boolean;
+  }>;
+  analysisStatus: 'pending' | 'processing' | 'analyzed' | 'confirmed';
+  geometry: {
+    walls: MapWall[];
+    rooms: MapRoom[];
+    corridors: MapCorridor[];
+    doors: MapDoor[];
+  };
+  navigation: {
+    gridWidth: number;
+    gridHeight: number;
+    cellSize: number;
+    walkableGrid?: any;
+  };
+  exits: MapExit[];
+  obstacles: MapObstacle[];
+  people: MapPerson[];
+  metadata?: {
+    frameCount?: number;
+    duration?: number;
+    description?: string;
+    analysisNotice?: string;
+    hasExternalVision?: boolean;
+    analyzedAt?: string;
+    extractedFrames?: Array<{
+      index: number;
+      timestamp: number;
+      imageData: string;
+    }>;
+    [key: string]: any;
+  };
+  createdAt?: string;
+  updatedAt?: string;
 }

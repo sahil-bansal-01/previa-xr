@@ -25,8 +25,11 @@ export const ScenarioControls: React.FC<ScenarioControlsProps> = ({
 }) => {
   const {
     scenario,
+    activeEnvironment,
+    exits,
     obstacle,
     blockExitA,
+    blockExitById,
     blockCorridor,
     clearObstacle,
     simulateFuture,
@@ -63,8 +66,8 @@ export const ScenarioControls: React.FC<ScenarioControlsProps> = ({
             <span className="text-[10px] font-mono tracking-widest text-cyan-400 uppercase font-bold block">
               STEP 1: CHOOSE ACTION
             </span>
-            <span className="text-xs font-bold text-slate-200 font-mono">
-              Hypothetical Decisions
+            <span className="text-xs font-bold text-slate-200 font-mono truncate max-w-[170px] block">
+              {activeEnvironment ? activeEnvironment.name : 'Hypothetical Decisions'}
             </span>
           </div>
         </div>
@@ -81,57 +84,113 @@ export const ScenarioControls: React.FC<ScenarioControlsProps> = ({
       <div className="p-4 space-y-4 overflow-y-auto flex-1 text-xs">
         {/* Step 1 Instructions */}
         <div className="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800 text-[11px] text-slate-300 leading-relaxed">
-          Select a hypothetical decision below or drag/click the obstacle directly in the 3D scene to modify navigation paths.
+          {activeEnvironment
+            ? 'Select which exit or route to test hypothetically in your uploaded space.'
+            : 'Select a hypothetical decision below or drag/click the obstacle directly in the 3D scene.'}
         </div>
 
         {/* Hypothetical Decision Choices */}
         <div className="space-y-2">
-          {/* Decision 1: Block Emergency Exit A */}
-          <button
-            onClick={blockExitA}
-            className={`w-full p-2.5 rounded-xl border text-left transition-all ${
-              obstacle.isBlockingExitA
-                ? 'bg-amber-950/50 border-amber-500/80 shadow-md shadow-amber-500/10'
-                : 'bg-slate-900/70 border-slate-800 hover:border-slate-700 hover:bg-slate-800/60'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <AlertOctagon className={`w-4 h-4 ${obstacle.isBlockingExitA ? 'text-amber-400' : 'text-slate-400'}`} />
-                <span className={`text-xs font-bold font-mono ${obstacle.isBlockingExitA ? 'text-amber-200' : 'text-slate-200'}`}>
-                  Block Emergency Exit A
-                </span>
-              </div>
-              <span className="text-[8px] font-mono bg-cyan-950 text-cyan-300 border border-cyan-800 px-1 py-0.5 rounded font-bold">
-                RECOMMENDED
-              </span>
-            </div>
-            <p className="text-[10px] text-slate-400 mt-1 pl-6">
-              Places heavy debris trolley blocking corridor access to Exit A.
-            </p>
-          </button>
+          {activeEnvironment ? (
+            /* Custom Environment Exit Blocking */
+            exits.map(ex => {
+              const isThisBlocked = obstacle.targetBlock === ex.id;
+              return (
+                <button
+                  key={ex.id}
+                  onClick={() => blockExitById(ex.id)}
+                  className={`w-full p-2.5 rounded-xl border text-left transition-all ${
+                    isThisBlocked
+                      ? 'bg-amber-950/50 border-amber-500/80 shadow-md shadow-amber-500/10'
+                      : 'bg-slate-900/70 border-slate-800 hover:border-slate-700 hover:bg-slate-800/60'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <AlertOctagon
+                        className={`w-4 h-4 ${isThisBlocked ? 'text-amber-400' : 'text-slate-400'}`}
+                      />
+                      <span
+                        className={`text-xs font-bold font-mono ${
+                          isThisBlocked ? 'text-amber-200' : 'text-slate-200'
+                        }`}
+                      >
+                        Block {ex.name}
+                      </span>
+                    </div>
+                    <span className="text-[8px] font-mono bg-cyan-950 text-cyan-300 border border-cyan-800 px-1 py-0.5 rounded font-bold uppercase">
+                      {ex.type || 'EXIT'}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1 pl-6">
+                    What if {ex.name} becomes blocked? Reroutes occupants to nearest exit.
+                  </p>
+                </button>
+              );
+            })
+          ) : (
+            /* Demo Campus Preset Decisions */
+            <>
+              {/* Decision 1: Block Emergency Exit A */}
+              <button
+                onClick={blockExitA}
+                className={`w-full p-2.5 rounded-xl border text-left transition-all ${
+                  obstacle.isBlockingExitA
+                    ? 'bg-amber-950/50 border-amber-500/80 shadow-md shadow-amber-500/10'
+                    : 'bg-slate-900/70 border-slate-800 hover:border-slate-700 hover:bg-slate-800/60'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <AlertOctagon
+                      className={`w-4 h-4 ${obstacle.isBlockingExitA ? 'text-amber-400' : 'text-slate-400'}`}
+                    />
+                    <span
+                      className={`text-xs font-bold font-mono ${
+                        obstacle.isBlockingExitA ? 'text-amber-200' : 'text-slate-200'
+                      }`}
+                    >
+                      Block Emergency Exit A
+                    </span>
+                  </div>
+                  <span className="text-[8px] font-mono bg-cyan-950 text-cyan-300 border border-cyan-800 px-1 py-0.5 rounded font-bold">
+                    RECOMMENDED
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1 pl-6">
+                  Places heavy debris trolley blocking corridor access to Exit A.
+                </p>
+              </button>
 
-          {/* Decision 2: Block Central Concourse */}
-          <button
-            onClick={blockCorridor}
-            className={`w-full p-2.5 rounded-xl border text-left transition-all ${
-              obstacle.targetBlock === 'corridor'
-                ? 'bg-amber-950/50 border-amber-500/80 shadow-md shadow-amber-500/10'
-                : 'bg-slate-900/70 border-slate-800 hover:border-slate-700 hover:bg-slate-800/60'
-            }`}
-          >
-            <div className="flex items-center space-x-2">
-              <Move className={`w-4 h-4 ${obstacle.targetBlock === 'corridor' ? 'text-amber-400' : 'text-slate-400'}`} />
-              <span className={`text-xs font-bold font-mono ${obstacle.targetBlock === 'corridor' ? 'text-amber-200' : 'text-slate-200'}`}>
-                Block Central Concourse
-              </span>
-            </div>
-            <p className="text-[10px] text-slate-400 mt-1 pl-6">
-              Blocks central junction connecting north and south campus wings.
-            </p>
-          </button>
+              {/* Decision 2: Block Central Concourse */}
+              <button
+                onClick={blockCorridor}
+                className={`w-full p-2.5 rounded-xl border text-left transition-all ${
+                  obstacle.targetBlock === 'corridor'
+                    ? 'bg-amber-950/50 border-amber-500/80 shadow-md shadow-amber-500/10'
+                    : 'bg-slate-900/70 border-slate-800 hover:border-slate-700 hover:bg-slate-800/60'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <Move
+                    className={`w-4 h-4 ${obstacle.targetBlock === 'corridor' ? 'text-amber-400' : 'text-slate-400'}`}
+                  />
+                  <span
+                    className={`text-xs font-bold font-mono ${
+                      obstacle.targetBlock === 'corridor' ? 'text-amber-200' : 'text-slate-200'
+                    }`}
+                  >
+                    Block Central Concourse
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1 pl-6">
+                  Blocks central junction connecting north and south campus wings.
+                </p>
+              </button>
+            </>
+          )}
 
-          {/* Decision 3: Clear to Baseline */}
+          {/* Clear Obstacles to Baseline */}
           <button
             onClick={clearObstacle}
             className={`w-full p-2 rounded-xl border text-left transition-all ${
@@ -141,7 +200,13 @@ export const ScenarioControls: React.FC<ScenarioControlsProps> = ({
             }`}
           >
             <div className="flex items-center space-x-2">
-              <CheckCircle2 className={`w-3.5 h-3.5 ${!obstacle.isBlockingExitA && obstacle.targetBlock === 'none' ? 'text-emerald-400' : 'text-slate-400'}`} />
+              <CheckCircle2
+                className={`w-3.5 h-3.5 ${
+                  !obstacle.isBlockingExitA && obstacle.targetBlock === 'none'
+                    ? 'text-emerald-400'
+                    : 'text-slate-400'
+                }`}
+              />
               <span className="text-[11px] font-medium text-slate-300 font-mono">
                 Clear Obstacles (Baseline)
               </span>

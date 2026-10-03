@@ -20,6 +20,7 @@ export const SpatialScene: React.FC = () => {
     cameraView,
     setCameraView,
     blockExitA,
+    blockExitById,
     blockCorridor,
     clearObstacle,
   } = useSimulation();
@@ -69,18 +70,18 @@ export const SpatialScene: React.FC = () => {
           <IndoorFloor rooms={rooms} />
           <WallSegments walls={walls} />
 
-          {/* Emergency Exit Portals (Exit A, Exit B, Exit C) */}
+          {/* Emergency Exit Portals (Exit A, Exit B, Exit C or user space exits) */}
           {exits.map(exit => (
             <ExitPortal
               key={exit.id}
               exit={exit}
               onSelect={() => {
-                if (exit.id === 'exit-a') {
-                  if (obstacle.isBlockingExitA) {
-                    clearObstacle();
-                  } else {
-                    blockExitA();
-                  }
+                if (exit.isBlocked) {
+                  clearObstacle();
+                } else if (exit.id === 'exit-a') {
+                  blockExitA();
+                } else {
+                  blockExitById(exit.id);
                 }
               }}
             />

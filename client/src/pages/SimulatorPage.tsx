@@ -4,6 +4,7 @@ import { ScenarioControls } from '../components/ui/ScenarioControls';
 import { ConsequencePanel } from '../components/ui/ConsequencePanel';
 import { TimelineBar } from '../components/ui/TimelineBar';
 import { SimulatorWorkflowBar } from '../components/ui/SimulatorWorkflowBar';
+import { EnvironmentSelector } from '../components/ui/EnvironmentSelector';
 import { SaveScenarioModal } from '../components/modals/SaveScenarioModal';
 import { useSimulation } from '../contexts/SimulationContext';
 import { Loader2 } from 'lucide-react';
@@ -31,6 +32,11 @@ export const SimulatorPage: React.FC = () => {
       <main className="absolute inset-0 w-full h-full z-0">
         <SpatialScene />
       </main>
+
+      {/* Top Left Floating HUD: Environment Selector */}
+      <div className="absolute top-3 left-4 z-30">
+        <EnvironmentSelector />
+      </div>
 
       {/* Top Floating Workflow Bar: STEP 1 → STEP 2 → STEP 3 */}
       <SimulatorWorkflowBar />

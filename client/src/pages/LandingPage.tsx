@@ -68,22 +68,27 @@ export const LandingPage: React.FC = () => {
 
         {/* Supporting text */}
         <p className="text-base md:text-lg text-slate-400 max-w-2xl mt-5 font-sans leading-relaxed">
-          Explore possible consequences of decisions in an interactive spatial environment before taking action in the real world.
+          An environment-aware spatial what-if simulator. PREVIA does not decide what your environment looks like — you define or verify the space, and PREVIA explores what could happen if you change something.
         </p>
 
         {/* Core Statement Banner */}
-        <div className="mt-8 px-5 py-2.5 rounded-xl bg-slate-900/80 border border-slate-800 text-xs md:text-sm font-mono text-slate-300 flex items-center space-x-2 backdrop-blur-sm">
-          <span className="text-cyan-400 font-bold">CORE CONCEPT:</span>
-          <span>Different Decisions → Different Possible Futures</span>
+        <div className="mt-8 px-5 py-3 rounded-xl bg-slate-900/90 border border-cyan-500/30 text-xs md:text-sm font-mono text-slate-300 flex flex-col sm:flex-row items-center gap-2 backdrop-blur-md shadow-lg shadow-cyan-500/5">
+          <span className="text-cyan-400 font-extrabold flex items-center gap-1.5">
+            <Sparkles className="w-4 h-4" />
+            <span>CORE PHILOSOPHY:</span>
+          </span>
+          <span className="text-center sm:text-left">
+            You Define Your Space &bull; PREVIA Simulates The Future
+          </span>
         </div>
 
-        {/* CTAs */}
+        {/* CTAs: UPLOAD YOUR SPACE (Primary) | TRY DEMO ENVIRONMENT (Secondary) | ENTER SIMULATOR */}
         <div className="mt-10 flex flex-col sm:flex-row items-center gap-4">
           <Link
-            to="/simulator"
-            className="w-full sm:w-auto px-8 py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-mono font-extrabold text-sm uppercase tracking-wider flex items-center justify-center space-x-2 transition-all shadow-xl shadow-cyan-500/25 hover:scale-105"
+            to="/upload-space"
+            className="w-full sm:w-auto px-8 py-4 rounded-xl bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-slate-950 font-mono font-extrabold text-sm uppercase tracking-wider flex items-center justify-center space-x-2 transition-all shadow-xl shadow-cyan-500/30 hover:scale-105"
           >
-            <span>ENTER SIMULATOR</span>
+            <span>UPLOAD YOUR SPACE</span>
             <ArrowRight className="w-4 h-4" />
           </Link>
 
@@ -92,14 +97,14 @@ export const LandingPage: React.FC = () => {
             className="w-full sm:w-auto px-7 py-4 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-cyan-500/40 text-cyan-300 font-mono font-bold text-sm uppercase tracking-wider flex items-center justify-center space-x-2 transition-all shadow-lg hover:border-cyan-400"
           >
             <Sparkles className="w-4 h-4 text-cyan-400" />
-            <span>START DEMO (EXIT A BLOCKED)</span>
+            <span>TRY DEMO ENVIRONMENT</span>
           </button>
 
           <Link
-            to="/about"
+            to="/simulator"
             className="w-full sm:w-auto px-6 py-4 rounded-xl text-slate-400 hover:text-slate-200 font-mono text-sm uppercase tracking-wider flex items-center justify-center space-x-1 transition-colors"
           >
-            <span>HOW IT WORKS</span>
+            <span>ENTER SIMULATOR</span>
             <ChevronRight className="w-4 h-4" />
           </Link>
         </div>

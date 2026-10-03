@@ -8,11 +8,14 @@ import {
   ConsequenceResult,
   TimelinePhase,
   Scenario,
+  Environment,
 } from '../simulation/types/simulationTypes';
 import { PathfindingEngine } from '../simulation/engine/PathfindingEngine';
 import { ConsequenceAnalyzer } from '../simulation/engine/ConsequenceAnalyzer';
 import { scenarioService } from '../services/scenarioService';
 import { simulationService } from '../services/simulationService';
+import { environmentService } from '../services/environmentService';
+import { environmentToNavigationGraph } from '../simulation/engine/environmentAdapter';
 
 interface SimulationContextType {
   scenario: Scenario | null;
@@ -41,6 +44,13 @@ interface SimulationContextType {
   setPlaybackSpeed: (speed: number) => void;
   saveSimulationRun: () => Promise<{ success: boolean; id?: string }>;
   loadScenarioById: (id: string) => Promise<void>;
+  // Environment Management (Upload Your Space)
+  activeEnvironment: Environment | null;
+  userEnvironments: Environment[];
+  loadEnvironment: (envOrId: Environment | string) => Promise<void>;
+  loadDemoEnvironment: () => void;
+  refreshUserEnvironments: () => Promise<void>;
+  blockExitById: (exitId: string) => void;
 }
 
 const SimulationContext = createContext<SimulationContextType | undefined>(undefined);
@@ -117,6 +127,10 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [simulationTime, setSimulationTime] = useState<number>(0);
   const [isSimulating, setIsSimulating] = useState<boolean>(false);
+
+  // User-created environments state
+  const [activeEnvironment, setActiveEnvironment] = useState<Environment | null>(null);
+  const [userEnvironments, setUserEnvironments] = useState<Environment[]>([]);
 
   const [consequence, setConsequence] = useState<ConsequenceResult>({
     riskLevel: 'Low',
@@ -211,9 +225,99 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setAgents(updated);
   };
 
-  useEffect(() => {
+  const refreshUserEnvironments = useCallback(async () => {
+    try {
+      const res = await environmentService.getEnvironments();
+      setUserEnvironments(res);
+    } catch (err) {
+      console.warn('[SimulationContext] Failed to load user environments:', err);
+    }
+  }, []);
+
+  const loadEnvironment = useCallback(async (envOrId: Environment | string) => {
+    try {
+      setLoading(true);
+      let env: Environment;
+      if (typeof envOrId === 'string') {
+        env = await environmentService.getEnvironmentById(envOrId);
+      } else {
+        env = envOrId;
+      }
+      setActiveEnvironment(env);
+      const navData = environmentToNavigationGraph(env);
+
+      setWalls(navData.walls);
+      setRooms(navData.rooms);
+      setExits(navData.exits);
+      if (navData.obstacles && navData.obstacles.length > 0) {
+        setObstacle(navData.obstacles[0]);
+      }
+
+      // Re-initialize A* pathfinder with custom space dimensions
+      pathfinderRef.current = new PathfindingEngine(navData.gridWidth, navData.gridHeight, 2);
+      pathfinderRef.current.bakeWalls(navData.walls);
+
+      calculateInitialPaths(navData.agents, navData.exits);
+      setTimelinePhase('BEFORE');
+      setIsPlaying(false);
+      setSimulationTime(0);
+      setConsequence({
+        riskLevel: 'Low',
+        blockedExits: [],
+        affectedPeople: 0,
+        totalPeople: navData.agents.length,
+        congestionLevel: 'Low (Optimal Flow)',
+        congestionPercent: 10,
+        estimatedDelay: 0,
+        recommendedExit: navData.exits[0]?.name || 'All Exits Clear',
+        bottleneckLocation: 'None',
+        evacuationRate: 100,
+        timestamp: new Date().toLocaleTimeString(),
+      });
+    } catch (err) {
+      console.error('[SimulationContext] Failed to load environment:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadDemoEnvironment = useCallback(() => {
+    setActiveEnvironment(null);
     initScenario();
   }, [initScenario]);
+
+  useEffect(() => {
+    initScenario();
+    refreshUserEnvironments();
+  }, [initScenario, refreshUserEnvironments]);
+
+  // Action: Block any Exit dynamically by ID
+  const blockExitById = useCallback((exitId: string) => {
+    const targetExit = exits.find(e => e.id === exitId);
+    if (!targetExit) return;
+
+    // Position obstacle close to the chosen exit
+    const pos: [number, number, number] = [
+      targetExit.position[0] > 0 ? targetExit.position[0] - 1.8 : targetExit.position[0] + 1.8,
+      0.4,
+      targetExit.position[2],
+    ];
+
+    setObstacle({
+      id: `obstacle-block-${exitId}`,
+      name: `Hazard Obstacle Blocking ${targetExit.name}`,
+      position: pos,
+      scale: [1.8, 1.2, 1.2],
+      isBlockingExitA: exitId === 'exit-a',
+      targetBlock: exitId,
+    });
+
+    setExits(prev =>
+      prev.map(e => (e.id === exitId ? { ...e, isBlocked: true } : e))
+    );
+
+    setTimelinePhase('ACTION');
+  }, [exits]);
 
   // Action: Block Exit A
   const blockExitA = () => {
@@ -294,11 +398,12 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     // 2. Determine affected exits
     const updatedExits = exits.map(e => {
       const isBlocked =
-        e.id === 'exit-a' && obstacle.isBlockingExitA ||
+        (e.id === 'exit-a' && obstacle.isBlockingExitA) ||
+        (obstacle.targetBlock === e.id) ||
         (Math.sqrt(
           Math.pow(obstacle.position[0] - e.position[0], 2) +
           Math.pow(obstacle.position[2] - e.position[2], 2)
-        ) < 3.0);
+        ) < 2.8);
       return { ...e, isBlocked };
     });
     setExits(updatedExits);
@@ -309,9 +414,22 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const isTargetBlocked = targetExitObj?.isBlocked;
 
       if (isTargetBlocked) {
-        // Need to reroute! Pick best alternative exit (Exit B or Exit C)
+        // Need to reroute! Pick best alternative exit
         const availableExits = updatedExits.filter(e => !e.isBlocked);
-        const altExit = availableExits.find(e => e.id === 'exit-b') || availableExits[0] || exits[1];
+        let altExit = availableExits[0] || exits[0];
+        if (availableExits.length > 0) {
+          let minDist = Infinity;
+          for (const cand of availableExits) {
+            const d = Math.hypot(
+              agent.currentPos[0] - cand.position[0],
+              agent.currentPos[2] - cand.position[2]
+            );
+            if (d < minDist) {
+              minDist = d;
+              altExit = cand;
+            }
+          }
+        }
 
         // Recalculate new A* path from current position
         const newPath = pathfinderRef.current.findPath(
@@ -396,10 +514,13 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const saveSimulationRun = async () => {
     try {
       const runData = {
-        scenarioId: scenario?._id || scenario?.id || 'campus-complex-1',
-        scenarioTitle: scenario?.title || 'Campus Academic Complex — North Wing',
-        actionPerformed: obstacle.isBlockingExitA
-          ? 'Hypothetical Action: Block Emergency Exit A with Trolley Debris'
+        scenarioId: activeEnvironment?._id || scenario?._id || scenario?.id || 'campus-complex-1',
+        scenarioTitle: activeEnvironment
+          ? `Uploaded Space: ${activeEnvironment.name}`
+          : scenario?.title || 'Campus Academic Complex — North Wing',
+        environmentId: activeEnvironment?._id,
+        actionPerformed: obstacle.targetBlock !== 'none'
+          ? `Hypothetical Action: Block ${obstacle.name}`
           : 'Hypothetical Action: Modify Spatial Obstacles',
         initialState: {
           blockedExits: [],
@@ -529,6 +650,12 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setPlaybackSpeed,
         saveSimulationRun,
         loadScenarioById,
+        activeEnvironment,
+        userEnvironments,
+        loadEnvironment,
+        loadDemoEnvironment,
+        refreshUserEnvironments,
+        blockExitById,
       }}
     >
       {children}

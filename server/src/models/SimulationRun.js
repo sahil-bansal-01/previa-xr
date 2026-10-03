@@ -13,6 +13,7 @@ const SimulationRunSchema = new mongoose.Schema({
   estimatedDelay: { type: Number, default: 0 },
   recommendedExit: { type: String, default: 'Exit B' },
   riskLevel: { type: String, enum: ['Low', 'Medium', 'High', 'Critical'], default: 'Medium' },
+  environmentId: { type: String, default: null },
   simulationTimestamp: { type: Date, default: Date.now },
   userId: { type: String, default: 'demo_user' },
 });
@@ -61,6 +62,7 @@ export const SimulationRunModel = {
       estimatedDelay: data.estimatedDelay || 0,
       recommendedExit: data.recommendedExit || 'Exit B',
       riskLevel: data.riskLevel || 'Medium',
+      environmentId: data.environmentId || null,
       simulationTimestamp: new Date(),
       userId: data.userId || 'demo_user',
     };
