@@ -3,17 +3,15 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSimulation } from '../../contexts/SimulationContext';
 import {
-  Compass,
-  Box,
-  Split,
-  History,
   Layers,
-  Info,
+  Box,
+  History,
+  LayoutDashboard,
+  UploadCloud,
   LogOut,
   User,
   Sparkles,
-  LayoutDashboard,
-  UploadCloud,
+  Home,
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
@@ -23,13 +21,10 @@ export const Navbar: React.FC = () => {
   const { blockExitA, simulateFuture } = useSimulation();
 
   const navLinks = [
+    { path: '/', label: 'Home', icon: Home },
     { path: '/upload-space', label: 'Upload Space', icon: UploadCloud },
     { path: '/simulator', label: 'Simulator', icon: Box },
-    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/scenarios', label: 'Scenarios', icon: Layers },
-    { path: '/comparison', label: 'Comparison', icon: Split },
     { path: '/history', label: 'History', icon: History },
-    { path: '/about', label: 'How It Works', icon: Info },
   ];
 
   const handleStartDemo = async () => {
@@ -44,26 +39,24 @@ export const Navbar: React.FC = () => {
   };
 
   return (
-    <header className="h-16 w-full glass-panel border-b border-slate-800/80 bg-slate-950/80 z-30 px-4 md:px-8 flex items-center justify-between sticky top-0 backdrop-blur-xl">
+    <header className="h-[68px] w-full bg-white border-b border-[#E2E5E9] shadow-[0_1px_3px_rgba(16,24,40,0.04)] z-40 px-4 md:px-8 flex items-center justify-between sticky top-0">
       {/* Brand Logo */}
-      <Link to="/" className="flex items-center space-x-3 group">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 p-0.5 shadow-lg shadow-cyan-500/20 group-hover:scale-105 transition-transform">
-          <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
-            <Compass className="w-5 h-5 text-cyan-400 group-hover:rotate-45 transition-transform duration-500" />
-          </div>
+      <Link to="/" className="flex items-center space-x-2.5 group">
+        <div className="w-8 h-8 rounded-lg bg-[#EFF6FF] border border-[#BFDBFE] flex items-center justify-center text-[#2563EB] group-hover:scale-105 transition-transform shadow-xs">
+          <Layers className="w-4 h-4 text-[#2563EB]" />
         </div>
-        <div>
-          <span className="text-base font-extrabold tracking-widest text-slate-100 font-mono flex items-center space-x-1">
+        <div className="flex flex-col">
+          <span className="text-[15px] font-bold tracking-tight text-[#172033] flex items-center space-x-1 font-sans">
             <span>PREVIA</span>
-            <span className="text-cyan-400">XR</span>
+            <span className="text-[#2563EB]">XR</span>
           </span>
-          <span className="text-[10px] text-slate-400 font-mono block -mt-1 tracking-wider uppercase">
-            Preview Before You Act
+          <span className="text-[10px] text-[#667085] font-normal tracking-normal -mt-0.5">
+            Spatial Intelligence
           </span>
         </div>
       </Link>
 
-      {/* Nav Links */}
+      {/* Main Nav Links */}
       <nav className="hidden md:flex items-center space-x-1">
         {navLinks.map(link => {
           const Icon = link.icon;
@@ -72,40 +65,40 @@ export const Navbar: React.FC = () => {
             <Link
               key={link.path}
               to={link.path}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all ${
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 isActive
-                  ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/40 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+                  ? 'bg-[#EFF6FF] text-[#2563EB] font-semibold shadow-xs'
+                  : 'text-[#667085] hover:text-[#172033] hover:bg-[#F1F3F5]'
               }`}
             >
-              <Icon className="w-3.5 h-3.5" />
+              <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#2563EB]' : 'text-[#667085]'}`} />
               <span>{link.label}</span>
             </Link>
           );
         })}
       </nav>
 
-      {/* Right Actions */}
+      {/* Right Controls */}
       <div className="flex items-center space-x-3">
-        {/* Quick Demo Button */}
+        {/* Quick Demo CTA */}
         <button
           onClick={handleStartDemo}
-          className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-xs font-mono uppercase tracking-wider transition-all shadow-md shadow-cyan-500/20 hover:scale-105"
-          title="Instant 1-Click Hackathon Evaluation Flow"
+          className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-white border border-[#E2E5E9] hover:border-[#2563EB] hover:bg-[#EFF6FF] text-[#172033] hover:text-[#2563EB] font-medium text-xs transition-all shadow-xs"
+          title="Run Baseline Demo Simulation"
         >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>START DEMO</span>
+          <Sparkles className="w-3.5 h-3.5 text-[#2563EB]" />
+          <span>Demo Complex</span>
         </button>
 
         {isAuthenticated && user ? (
-          <div className="flex items-center space-x-2 pl-2 border-l border-slate-800">
-            <div className="flex items-center space-x-2 text-xs font-mono text-slate-300 bg-slate-900 px-2.5 py-1.5 rounded-lg border border-slate-800">
-              <User className="w-3.5 h-3.5 text-cyan-400" />
+          <div className="flex items-center space-x-2 pl-2 border-l border-[#E2E5E9]">
+            <div className="flex items-center space-x-1.5 text-xs text-[#172033] bg-[#F1F3F5] px-2.5 py-1.5 rounded-lg font-medium border border-[#E2E5E9]">
+              <User className="w-3.5 h-3.5 text-[#2563EB]" />
               <span className="max-w-[120px] truncate">{user.name.split(' ')[0]}</span>
             </div>
             <button
               onClick={logout}
-              className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-900 rounded-lg transition-colors"
+              className="p-1.5 text-[#667085] hover:text-[#DC2626] hover:bg-[#F1F3F5] rounded-lg transition-colors"
               title="Logout"
             >
               <LogOut className="w-4 h-4" />
@@ -115,15 +108,15 @@ export const Navbar: React.FC = () => {
           <div className="flex items-center space-x-2">
             <Link
               to="/login"
-              className="text-xs font-mono text-slate-300 hover:text-cyan-400 px-3 py-1.5 rounded-lg hover:bg-slate-900 transition-colors"
+              className="text-xs font-medium text-[#667085] hover:text-[#172033] px-3 py-1.5 rounded-lg hover:bg-[#F1F3F5] transition-colors"
             >
-              Login
+              Sign In
             </Link>
             <Link
               to="/register"
-              className="text-xs font-mono font-medium text-cyan-300 bg-cyan-950/60 border border-cyan-800/80 px-3 py-1.5 rounded-lg hover:bg-cyan-900/60 transition-colors"
+              className="text-xs font-medium text-white bg-[#2563EB] hover:bg-[#1D4ED8] px-3.5 py-1.5 rounded-lg transition-colors shadow-xs"
             >
-              Register
+              Get Started
             </Link>
           </div>
         )}

@@ -1,30 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSimulation } from '../../contexts/SimulationContext';
 import {
-  RotateCcw,
   AlertOctagon,
-  Sparkles,
   Move,
-  CheckCircle2,
-  Save,
+  ShieldAlert,
+  Sparkles,
+  RotateCcw,
   ChevronLeft,
   ChevronRight,
-  Sliders,
+  SlidersHorizontal,
+  CheckCircle2,
 } from 'lucide-react';
 
 interface ScenarioControlsProps {
-  onOpenSaveModal: () => void;
+  onOpenSaveModal?: () => void;
   isOpen: boolean;
   onToggle: () => void;
 }
 
+type WhatIfActionType = 'block_exit' | 'block_corridor' | 'add_obstacle';
+
 export const ScenarioControls: React.FC<ScenarioControlsProps> = ({
-  onOpenSaveModal,
   isOpen,
   onToggle,
 }) => {
   const {
-    scenario,
     activeEnvironment,
     exits,
     obstacle,
@@ -35,223 +35,205 @@ export const ScenarioControls: React.FC<ScenarioControlsProps> = ({
     simulateFuture,
     resetScenario,
     isSimulating,
-    timelinePhase,
   } = useSimulation();
+
+  const [selectedAction, setSelectedAction] = useState<WhatIfActionType>('block_exit');
+  const [selectedExitId, setSelectedExitId] = useState<string>(
+    exits.length > 0 ? exits[0].id : 'exit-main'
+  );
+
+  const handleSelectAction = (action: WhatIfActionType) => {
+    setSelectedAction(action);
+    if (action === 'block_exit') {
+      const target = exits.find(e => e.id === selectedExitId) || exits[0];
+      if (target && (target.id === 'exit-main' || target.id === 'exit-a')) {
+        blockExitA();
+      } else if (target) {
+        blockExitById(target.id);
+      } else {
+        blockExitA();
+      }
+    } else if (action === 'block_corridor') {
+      blockCorridor();
+    } else if (action === 'add_obstacle') {
+      blockCorridor();
+    }
+  };
+
+  const handleSelectExitTarget = (exitId: string) => {
+    setSelectedExitId(exitId);
+    if (exitId === 'exit-main' || exitId === 'exit-a') {
+      blockExitA();
+    } else {
+      blockExitById(exitId);
+    }
+  };
+
+  const isBlocked = obstacle.isBlockingExitA || obstacle.targetBlock !== 'none';
 
   if (!isOpen) {
     return (
-      <div className="absolute top-20 left-4 z-20">
+      <div className="absolute top-16 left-4 z-20">
         <button
           onClick={onToggle}
-          className="flex items-center space-x-2 px-3 py-2 rounded-xl bg-slate-950/85 backdrop-blur-xl border border-slate-700/80 text-cyan-300 hover:text-cyan-200 font-mono text-xs font-bold shadow-2xl transition-all hover:scale-105"
-          title="Open Step 1: Decision Controls"
+          className="flex items-center space-x-2 px-3.5 py-2 rounded-xl bg-white border border-[#E2E5E9] text-[#172033] hover:text-[#2563EB] font-sans text-xs font-bold shadow-sm transition-all"
+          title="Open WHAT-IF panel"
         >
-          <Sliders className="w-3.5 h-3.5 text-cyan-400" />
-          <span>STEP 1: CONTROLS</span>
-          <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
+          <SlidersHorizontal className="w-3.5 h-3.5 text-[#2563EB]" />
+          <span>WHAT-IF</span>
+          <ChevronRight className="w-3.5 h-3.5 text-[#667085]" />
         </button>
       </div>
     );
   }
 
   return (
-    <aside className="absolute top-20 left-4 z-20 w-80 max-h-[calc(100vh-12rem)] flex flex-col bg-slate-950/85 backdrop-blur-2xl border border-slate-800/90 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-left-4 duration-200">
-      {/* Panel Header */}
-      <div className="p-3.5 border-b border-slate-800/80 flex items-center justify-between bg-slate-900/40">
+    <aside className="absolute top-16 left-4 z-20 w-80 bg-white border border-[#E2E5E9] rounded-2xl shadow-lg overflow-hidden font-sans">
+      {/* Header */}
+      <div className="p-3.5 border-b border-[#E2E5E9] flex items-center justify-between bg-white">
         <div className="flex items-center space-x-2">
-          <div className="w-5 h-5 rounded bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-mono text-xs font-black">
+          <div className="w-6 h-6 rounded-lg bg-[#EFF6FF] text-[#2563EB] flex items-center justify-center font-bold text-xs">
             1
           </div>
           <div>
-            <span className="text-[10px] font-mono tracking-widest text-cyan-400 uppercase font-bold block">
-              STEP 1: CHOOSE ACTION
-            </span>
-            <span className="text-xs font-bold text-slate-200 font-mono truncate max-w-[170px] block">
-              {activeEnvironment ? activeEnvironment.name : 'Hypothetical Decisions'}
+            <h2 className="text-xs font-bold text-[#172033] tracking-wide uppercase">
+              WHAT-IF
+            </h2>
+            <span className="text-[10px] text-[#667085]">
+              What do you want to change?
             </span>
           </div>
         </div>
 
         <button
           onClick={onToggle}
-          className="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
-          title="Collapse Panel for Full 3D View"
+          className="p-1 rounded-lg text-[#667085] hover:text-[#172033] hover:bg-[#F1F3F5] transition-colors"
+          title="Collapse Panel"
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
       </div>
 
-      <div className="p-4 space-y-4 overflow-y-auto flex-1 text-xs">
-        {/* Step 1 Instructions */}
-        <div className="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800 text-[11px] text-slate-300 leading-relaxed">
-          {activeEnvironment
-            ? 'Select which exit or route to test hypothetically in your uploaded space.'
-            : 'Select a hypothetical decision below or drag/click the obstacle directly in the 3D scene.'}
-        </div>
-
-        {/* Hypothetical Decision Choices */}
-        <div className="space-y-2">
-          {activeEnvironment ? (
-            /* Custom Environment Exit Blocking */
-            exits.map(ex => {
-              const isThisBlocked = obstacle.targetBlock === ex.id;
-              return (
-                <button
-                  key={ex.id}
-                  onClick={() => blockExitById(ex.id)}
-                  className={`w-full p-2.5 rounded-xl border text-left transition-all ${
-                    isThisBlocked
-                      ? 'bg-amber-950/50 border-amber-500/80 shadow-md shadow-amber-500/10'
-                      : 'bg-slate-900/70 border-slate-800 hover:border-slate-700 hover:bg-slate-800/60'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <AlertOctagon
-                        className={`w-4 h-4 ${isThisBlocked ? 'text-amber-400' : 'text-slate-400'}`}
-                      />
-                      <span
-                        className={`text-xs font-bold font-mono ${
-                          isThisBlocked ? 'text-amber-200' : 'text-slate-200'
-                        }`}
-                      >
-                        Block {ex.name}
-                      </span>
-                    </div>
-                    <span className="text-[8px] font-mono bg-cyan-950 text-cyan-300 border border-cyan-800 px-1 py-0.5 rounded font-bold uppercase">
-                      {ex.type || 'EXIT'}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-1 pl-6">
-                    What if {ex.name} becomes blocked? Reroutes occupants to nearest exit.
-                  </p>
-                </button>
-              );
-            })
-          ) : (
-            /* Demo Campus Preset Decisions */
-            <>
-              {/* Decision 1: Block Emergency Exit A */}
-              <button
-                onClick={blockExitA}
-                className={`w-full p-2.5 rounded-xl border text-left transition-all ${
-                  obstacle.isBlockingExitA
-                    ? 'bg-amber-950/50 border-amber-500/80 shadow-md shadow-amber-500/10'
-                    : 'bg-slate-900/70 border-slate-800 hover:border-slate-700 hover:bg-slate-800/60'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <AlertOctagon
-                      className={`w-4 h-4 ${obstacle.isBlockingExitA ? 'text-amber-400' : 'text-slate-400'}`}
-                    />
-                    <span
-                      className={`text-xs font-bold font-mono ${
-                        obstacle.isBlockingExitA ? 'text-amber-200' : 'text-slate-200'
-                      }`}
-                    >
-                      Block Emergency Exit A
-                    </span>
-                  </div>
-                  <span className="text-[8px] font-mono bg-cyan-950 text-cyan-300 border border-cyan-800 px-1 py-0.5 rounded font-bold">
-                    RECOMMENDED
-                  </span>
-                </div>
-                <p className="text-[10px] text-slate-400 mt-1 pl-6">
-                  Places heavy debris trolley blocking corridor access to Exit A.
-                </p>
-              </button>
-
-              {/* Decision 2: Block Central Concourse */}
-              <button
-                onClick={blockCorridor}
-                className={`w-full p-2.5 rounded-xl border text-left transition-all ${
-                  obstacle.targetBlock === 'corridor'
-                    ? 'bg-amber-950/50 border-amber-500/80 shadow-md shadow-amber-500/10'
-                    : 'bg-slate-900/70 border-slate-800 hover:border-slate-700 hover:bg-slate-800/60'
-                }`}
-              >
-                <div className="flex items-center space-x-2">
-                  <Move
-                    className={`w-4 h-4 ${obstacle.targetBlock === 'corridor' ? 'text-amber-400' : 'text-slate-400'}`}
-                  />
-                  <span
-                    className={`text-xs font-bold font-mono ${
-                      obstacle.targetBlock === 'corridor' ? 'text-amber-200' : 'text-slate-200'
-                    }`}
-                  >
-                    Block Central Concourse
-                  </span>
-                </div>
-                <p className="text-[10px] text-slate-400 mt-1 pl-6">
-                  Blocks central junction connecting north and south campus wings.
-                </p>
-              </button>
-            </>
-          )}
-
-          {/* Clear Obstacles to Baseline */}
+      <div className="p-3.5 space-y-3 text-xs">
+        {/* EXACTLY 3 ACTIONS */}
+        <div className="space-y-1.5">
+          {/* Action 1: Block Exit */}
           <button
-            onClick={clearObstacle}
-            className={`w-full p-2 rounded-xl border text-left transition-all ${
-              !obstacle.isBlockingExitA && obstacle.targetBlock === 'none'
-                ? 'bg-emerald-950/40 border-emerald-500/60'
-                : 'bg-slate-900/40 border-slate-800/80 hover:bg-slate-800/40'
+            type="button"
+            onClick={() => handleSelectAction('block_exit')}
+            className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between transition-all ${
+              selectedAction === 'block_exit' && isBlocked
+                ? 'bg-[#FEF2F2] border-[#FCA5A5] text-[#DC2626] font-semibold'
+                : 'bg-white border-[#E2E5E9] hover:bg-[#F8FAFC] text-[#172033]'
             }`}
           >
             <div className="flex items-center space-x-2">
-              <CheckCircle2
-                className={`w-3.5 h-3.5 ${
-                  !obstacle.isBlockingExitA && obstacle.targetBlock === 'none'
-                    ? 'text-emerald-400'
-                    : 'text-slate-400'
+              <AlertOctagon
+                className={`w-4 h-4 ${
+                  selectedAction === 'block_exit' && isBlocked
+                    ? 'text-[#DC2626]'
+                    : 'text-[#667085]'
                 }`}
               />
-              <span className="text-[11px] font-medium text-slate-300 font-mono">
-                Clear Obstacles (Baseline)
-              </span>
+              <span className="text-xs font-medium">Block Exit</span>
             </div>
+            {selectedAction === 'block_exit' && isBlocked && (
+              <span className="text-[10px] bg-[#DC2626] text-white px-1.5 py-0.5 rounded font-bold">
+                ACTIVE
+              </span>
+            )}
           </button>
-        </div>
 
-        {/* Primary Step 2 Trigger */}
-        <div className="pt-2 border-t border-slate-800/80 space-y-1.5">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-semibold block">
-            STEP 2: RUN SIMULATION
-          </span>
+          {/* Action 2: Block Corridor */}
           <button
-            onClick={simulateFuture}
-            disabled={isSimulating}
-            className={`w-full py-2.5 px-3 rounded-xl font-mono font-extrabold text-xs uppercase tracking-wider flex items-center justify-center space-x-2 transition-all shadow-xl ${
-              isSimulating
-                ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/50 cursor-wait'
-                : obstacle.isBlockingExitA
-                ? 'bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 shadow-cyan-500/30'
-                : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+            type="button"
+            onClick={() => handleSelectAction('block_corridor')}
+            className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between transition-all ${
+              selectedAction === 'block_corridor' && isBlocked
+                ? 'bg-[#FEF2F2] border-[#FCA5A5] text-[#DC2626] font-semibold'
+                : 'bg-white border-[#E2E5E9] hover:bg-[#F8FAFC] text-[#172033]'
             }`}
           >
-            <Sparkles className="w-4 h-4" />
-            <span>{isSimulating ? 'Simulating...' : 'SIMULATE FUTURE'}</span>
+            <div className="flex items-center space-x-2">
+              <Move
+                className={`w-4 h-4 ${
+                  selectedAction === 'block_corridor' && isBlocked
+                    ? 'text-[#DC2626]'
+                    : 'text-[#667085]'
+                }`}
+              />
+              <span className="text-xs font-medium">Block Corridor</span>
+            </div>
+            {selectedAction === 'block_corridor' && isBlocked && (
+              <span className="text-[10px] bg-[#DC2626] text-white px-1.5 py-0.5 rounded font-bold">
+                ACTIVE
+              </span>
+            )}
+          </button>
+
+          {/* Action 3: Add Obstacle */}
+          <button
+            type="button"
+            onClick={() => handleSelectAction('add_obstacle')}
+            className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between transition-all ${
+              selectedAction === 'add_obstacle' && isBlocked
+                ? 'bg-[#FEF2F2] border-[#FCA5A5] text-[#DC2626] font-semibold'
+                : 'bg-white border-[#E2E5E9] hover:bg-[#F8FAFC] text-[#172033]'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <ShieldAlert
+                className={`w-4 h-4 ${
+                  selectedAction === 'add_obstacle' && isBlocked
+                    ? 'text-[#DC2626]'
+                    : 'text-[#667085]'
+                }`}
+              />
+              <span className="text-xs font-medium">Add Obstacle</span>
+            </div>
+            {selectedAction === 'add_obstacle' && isBlocked && (
+              <span className="text-[10px] bg-[#DC2626] text-white px-1.5 py-0.5 rounded font-bold">
+                ACTIVE
+              </span>
+            )}
           </button>
         </div>
 
-        {/* Scenario Controls & Actions */}
-        <div className="pt-2 border-t border-slate-800/80 flex items-center space-x-2">
+        {/* SELECT TARGET (if Block Exit selected) - Clean uppercase meaningful names (Section 30) */}
+        {selectedAction === 'block_exit' && exits.length > 0 && (
+          <div className="pt-2 border-t border-[#E2E5E9] space-y-1.5">
+            <span className="text-[10px] font-bold text-[#667085] uppercase tracking-wider block">
+              SELECT TARGET
+            </span>
+            <select
+              value={selectedExitId}
+              onChange={e => handleSelectExitTarget(e.target.value)}
+              className="w-full px-2.5 py-1.5 rounded-lg bg-[#F8FAFC] border border-[#CBD5E1] text-[#172033] text-xs font-semibold focus:outline-none focus:border-[#2563EB]"
+            >
+              {exits.map(ex => {
+                const labelText = (ex.label || ex.name || 'EXIT').toUpperCase();
+                return (
+                  <option key={ex.id} value={ex.id}>
+                    {labelText}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+        )}
+
+        {/* Reset to Baseline */}
+        <div className="pt-2 border-t border-[#E2E5E9]">
           <button
-            onClick={resetScenario}
-            className="flex-1 py-1.5 px-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-slate-300 flex items-center justify-center space-x-1.5"
-            title="Reset environment"
+            type="button"
+            onClick={() => {
+              clearObstacle();
+              resetScenario();
+            }}
+            className="w-full py-2 px-3 rounded-xl bg-[#F8FAFC] hover:bg-[#F1F3F5] text-[#475467] hover:text-[#172033] border border-[#CBD5E1] text-xs font-semibold flex items-center justify-center space-x-1.5 transition-colors"
           >
-            <RotateCcw className="w-3 h-3 text-slate-400" />
-            <span>Reset</span>
-          </button>
-          <button
-            onClick={onOpenSaveModal}
-            className="flex-1 py-1.5 px-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-cyan-300 flex items-center justify-center space-x-1.5"
-            title="Save scenario"
-          >
-            <Save className="w-3 h-3 text-cyan-400" />
-            <span>Save</span>
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset to Baseline</span>
           </button>
         </div>
       </div>

@@ -241,41 +241,44 @@ export const EnvironmentReviewPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-[calc(100vh-4rem)] bg-[#07090e] flex items-center justify-center text-cyan-400 font-mono">
-        <Sparkles className="w-6 h-6 animate-spin mr-3" />
+      <div className="min-h-[calc(100vh-4.5rem)] bg-[#F7F8FA] flex items-center justify-center text-[#2563EB] font-sans font-medium">
+        <Sparkles className="w-6 h-6 animate-spin mr-3 text-[#2563EB]" />
         <span>Loading space configuration...</span>
       </div>
     );
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-[#07090e] text-slate-100 flex flex-col py-6 px-4 md:px-8">
+    <div className="min-h-[calc(100vh-4.5rem)] bg-[#F7F8FA] text-[#172033] flex flex-col py-6 px-4 md:px-8">
       {/* Top Header */}
       <div className="max-w-7xl mx-auto w-full mb-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-slate-800">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#E2E5E9]">
           <div>
-            <div className="flex items-center space-x-2 text-cyan-400 font-mono text-xs tracking-wider uppercase mb-1">
+            <div className="flex items-center space-x-2 text-[#2563EB] font-sans text-xs tracking-wider uppercase mb-1.5 font-bold">
               <span>PREVIA XR</span>
               <span>&bull;</span>
-              <span className="px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-500/30">
-                STEP 2 — VERIFY YOUR SPACE
+              <span className="px-2.5 py-0.5 rounded-full bg-[#EFF6FF] border border-[#BFDBFE] text-[#2563EB]">
+                STEP 2 &mdash; VERIFY YOUR SPACE
               </span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold font-mono tracking-tight text-white flex items-center gap-3">
-              <span>{environment?.name || 'VERIFY YOUR SPACE'}</span>
+            <h1 className="text-2xl md:text-3xl font-extrabold font-sans tracking-tight text-[#172033] flex items-center gap-3">
+              <span>
+                {environment?.name && !/whatsapp|vid[_\-]|img[_\-]|mov|mp4|webm|\d{6}/i.test(environment.name)
+                  ? environment.name
+                  : 'My Space'}
+              </span>
               <span
-                className={`text-xs px-2.5 py-1 rounded-full font-mono font-bold uppercase ${
+                className={`text-xs px-3 py-1 rounded-full font-sans font-semibold uppercase tracking-wide ${
                   status === 'confirmed'
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                    ? 'bg-[#DCFCE7] text-[#16A34A] border border-[#BBF7D0]'
+                    : 'bg-[#FEF3C7] text-[#D97706] border border-[#FDE68A]'
                 }`}
               >
-                {status.toUpperCase()}
+                {status === 'confirmed' ? '✓ VERIFIED' : 'DRAFT'}
               </span>
             </h1>
-            <p className="text-xs md:text-sm text-slate-400 mt-1">
-              Review and correct the approximate map before running a what-if simulation. Add or
-              reposition walls, doors, exits, and people.
+            <p className="text-xs md:text-sm text-[#667085] mt-1 font-sans">
+              Review and correct the approximate 2D spatial model. Add or reposition walls, doors, exits, obstacles, and people.
             </p>
           </div>
 
@@ -285,9 +288,9 @@ export const EnvironmentReviewPage: React.FC = () => {
               type="button"
               onClick={handleSaveDraft}
               disabled={saving}
-              className="px-3.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-mono font-bold text-slate-300 hover:text-white flex items-center gap-1.5 transition-all"
+              className="px-4 py-2 rounded-xl bg-white hover:bg-[#F1F3F5] border border-[#E2E5E9] text-xs font-sans font-semibold text-[#172033] flex items-center gap-2 transition-all shadow-sm"
             >
-              <Save className="w-3.5 h-3.5" />
+              <Save className="w-4 h-4 text-[#667085]" />
               <span>{saving ? 'SAVING...' : 'SAVE DRAFT'}</span>
             </button>
           </div>
@@ -295,9 +298,9 @@ export const EnvironmentReviewPage: React.FC = () => {
 
         {/* Validation error banner */}
         {validationError && (
-          <div className="mt-3 p-3.5 rounded-xl bg-red-950/50 border border-red-500/50 text-red-200 text-xs md:text-sm flex items-center gap-2.5 animate-shake">
-            <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
-            <span>{validationError}</span>
+          <div className="mt-3 p-3.5 rounded-xl bg-[#FEF2F2] border border-[#FCA5A5] text-[#991B1B] text-xs md:text-sm flex items-center gap-2.5 shadow-sm">
+            <AlertTriangle className="w-4 h-4 text-[#DC2626] flex-shrink-0" />
+            <span className="font-sans font-medium">{validationError}</span>
           </div>
         )}
       </div>
@@ -366,17 +369,16 @@ export const EnvironmentReviewPage: React.FC = () => {
         </div>
 
         {/* Bottom Bar: Action & Confirmation */}
-        <div className="mt-4 p-4 rounded-xl bg-slate-900/90 border border-slate-800 backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="mt-4 p-4 rounded-2xl bg-white border border-[#E2E5E9] shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             {status === 'confirmed' ? (
-              <div className="flex items-center gap-2 text-emerald-400 text-xs font-mono">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                <span>Your space is ready for simulation.</span>
+              <div className="flex items-center gap-2 text-[#16A34A] text-sm font-sans font-semibold">
+                <CheckCircle2 className="w-5 h-5 text-[#16A34A]" />
+                <span>✓ SPACE VERIFIED &mdash; Your environment is ready for simulation.</span>
               </div>
             ) : (
-              <div className="text-xs text-slate-400 font-sans">
-                Verify geometry, doors, and exits, then click Confirm Environment to proceed to 3D
-                simulation.
+              <div className="text-xs text-[#667085] font-sans">
+                Verify geometry, doors, and exits, then click <strong className="text-[#172033]">Confirm Environment</strong> to proceed to 3D simulation.
               </div>
             )}
           </div>
@@ -387,18 +389,18 @@ export const EnvironmentReviewPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setStatus('draft')}
-                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono text-xs font-bold uppercase transition-colors flex items-center gap-1.5"
+                  className="px-4 py-2.5 rounded-xl bg-white hover:bg-[#F1F3F5] text-[#172033] border border-[#E2E5E9] font-sans text-xs font-bold uppercase transition-colors flex items-center gap-1.5 shadow-sm"
                 >
-                  <Edit2 className="w-3.5 h-3.5" />
+                  <Edit2 className="w-3.5 h-3.5 text-[#667085]" />
                   <span>EDIT MAP</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleStartSimulation}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-mono font-extrabold text-xs uppercase tracking-wider flex items-center justify-center space-x-2 transition-all shadow-lg shadow-cyan-500/25 hover:scale-105"
+                  className="px-6 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-sans font-bold text-xs uppercase tracking-wider flex items-center justify-center space-x-2 transition-all shadow-md hover:shadow-lg"
                 >
-                  <Play className="w-4 h-4 fill-slate-950" />
+                  <Play className="w-4 h-4 fill-white" />
                   <span>START WHAT-IF SIMULATION</span>
                 </button>
               </>
@@ -407,10 +409,10 @@ export const EnvironmentReviewPage: React.FC = () => {
                 type="button"
                 onClick={handleConfirmEnvironment}
                 disabled={saving}
-                className="w-full sm:w-auto px-7 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-mono font-extrabold text-xs uppercase tracking-wider flex items-center justify-center space-x-2 transition-all shadow-xl shadow-cyan-500/25 hover:scale-105"
+                className="w-full sm:w-auto px-7 py-3 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-sans font-bold text-xs uppercase tracking-wider flex items-center justify-center space-x-2 transition-all shadow-md hover:shadow-lg"
               >
                 <ShieldCheck className="w-4 h-4" />
-                <span>CONFIRM ENVIRONMENT</span>
+                <span>CONFIRM SPACE</span>
               </button>
             )}
           </div>

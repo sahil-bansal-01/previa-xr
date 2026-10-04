@@ -34,10 +34,18 @@ export const EnvironmentSelector: React.FC = () => {
     }
   };
 
+  const formatDisplayName = (name: string): string => {
+    if (!name) return 'My Space';
+    if (/whatsapp|vid[_\-]|img[_\-]|mov|mp4|webm|png|jpg|\d{6}/i.test(name) || name.length > 25) {
+      return 'My Space';
+    }
+    return name;
+  };
+
   return (
-    <div className="flex items-center space-x-2 bg-slate-950/85 backdrop-blur-xl border border-slate-700/80 rounded-xl px-3 py-1.5 shadow-xl text-xs font-mono">
-      <div className="flex items-center space-x-1.5 text-cyan-400 font-bold uppercase tracking-wider">
-        <Building className="w-3.5 h-3.5 text-cyan-400" />
+    <div className="flex items-center space-x-2 bg-white/95 backdrop-blur-md border border-[#E2E5E9] rounded-xl px-3 py-1.5 shadow-md text-xs font-sans">
+      <div className="flex items-center space-x-1.5 text-[#172033] font-bold uppercase tracking-wider">
+        <Building className="w-3.5 h-3.5 text-[#2563EB]" />
         <span className="hidden sm:inline">ENVIRONMENT:</span>
       </div>
 
@@ -45,28 +53,28 @@ export const EnvironmentSelector: React.FC = () => {
         <select
           value={activeEnvironment ? activeEnvironment._id : 'demo'}
           onChange={handleSelectChange}
-          className="appearance-none bg-slate-900 border border-slate-700 hover:border-cyan-500/70 text-slate-100 py-1 pl-2.5 pr-7 rounded-lg text-xs font-mono font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500 cursor-pointer transition-all"
+          className="appearance-none bg-white border border-[#E2E5E9] hover:border-[#2563EB] text-[#172033] py-1 pl-2.5 pr-7 rounded-lg text-xs font-sans font-semibold focus:outline-none focus:ring-1 focus:ring-[#2563EB] cursor-pointer transition-all shadow-xs"
         >
-          <option value="demo">Demo Campus Complex (Fixed)</option>
+          <option value="demo">Demo Campus Complex</option>
           {userEnvironments.map(env => (
             <option key={env._id} value={env._id}>
-              {env.name} ({env.analysisStatus === 'confirmed' ? 'Verified' : 'Draft'})
+              {formatDisplayName(env.name)} ({env.analysisStatus === 'confirmed' ? 'Verified' : 'Draft'})
             </option>
           ))}
           <option value="upload_new">+ Upload Your Space...</option>
         </select>
-        <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" />
+        <ChevronDown className="w-3.5 h-3.5 text-[#667085] pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" />
       </div>
 
       {activeEnvironment ? (
-        <span className="hidden md:inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-mono">
+        <span className="hidden md:inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-[#DCFCE7] border border-[#BBF7D0] text-[#16A34A] text-[10px] font-sans font-bold tracking-wider uppercase">
           <CheckCircle2 className="w-3 h-3" />
-          <span>Custom Space</span>
+          <span>CUSTOM SPACE</span>
         </span>
       ) : (
-        <span className="hidden md:inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-[10px] font-mono">
+        <span className="hidden md:inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-[#EFF6FF] border border-[#BFDBFE] text-[#2563EB] text-[10px] font-sans font-bold tracking-wider uppercase">
           <Compass className="w-3 h-3" />
-          <span>Demo Complex</span>
+          <span>DEMO ENVIRONMENT</span>
         </span>
       )}
 
@@ -74,9 +82,9 @@ export const EnvironmentSelector: React.FC = () => {
         type="button"
         onClick={() => navigate('/upload-space')}
         title="Upload walkthrough video or images to create a new space"
-        className="px-2 py-1 rounded-lg bg-cyan-950/60 hover:bg-cyan-900/60 border border-cyan-500/30 hover:border-cyan-400 text-cyan-300 text-[11px] font-mono flex items-center space-x-1 transition-all"
+        className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#F1F3F5] border border-[#E2E5E9] text-[#2563EB] text-xs font-sans font-semibold flex items-center space-x-1 transition-all shadow-xs"
       >
-        <UploadCloud className="w-3 h-3" />
+        <UploadCloud className="w-3.5 h-3.5 text-[#2563EB]" />
         <span className="hidden lg:inline">Upload Space</span>
       </button>
     </div>

@@ -13,7 +13,16 @@ if (!fs.existsSync(uploadDir)) {
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadDir);
+    const rawEnvId = req.headers['x-environment-id'] || req.query.environmentId || req.body.environmentId;
+    const envId = rawEnvId ? String(rawEnvId).replace(/[^a-zA-Z0-9_-]/g, '_') : ('env_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7));
+    req.environmentId = envId;
+
+    const subfolder = req.query.type === 'frame' ? 'frames' : 'original';
+    const targetDir = path.join(uploadDir, envId, subfolder);
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+    cb(null, targetDir);
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();

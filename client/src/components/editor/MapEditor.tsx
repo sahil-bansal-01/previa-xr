@@ -104,6 +104,68 @@ export const MapEditor: React.FC<MapEditorProps> = ({
     };
   };
 
+  // Validation notification state
+  const [validationMsg, setValidationMsg] = useState<string | null>(null);
+
+  // Show transient validation toast
+  const showValidation = (msg: string) => {
+    setValidationMsg(msg);
+    setTimeout(() => {
+      setValidationMsg(prev => (prev === msg ? null : prev));
+    }, 2800);
+  };
+
+  // Geometry vertex snapping helper (snaps to nearby wall vertices within 0.8m)
+  const snapToNearbyVertex = (worldX: number, worldY: number, threshold = 0.8) => {
+    let bestX = worldX;
+    let bestY = worldY;
+    let minDist = threshold;
+
+    walls.forEach(w => {
+      const d1 = Math.hypot(w.x1 - worldX, w.y1 - worldY);
+      if (d1 < minDist) {
+        minDist = d1;
+        bestX = w.x1;
+        bestY = w.y1;
+      }
+      const d2 = Math.hypot(w.x2 - worldX, w.y2 - worldY);
+      if (d2 < minDist) {
+        minDist = d2;
+        bestX = w.x2;
+        bestY = w.y2;
+      }
+    });
+
+    return { x: bestX, y: bestY, isSnapped: minDist < threshold };
+  };
+
+  // Find closest wall to snap doors or exits
+  const findClosestWall = (worldX: number, worldY: number) => {
+    let closestWall: MapWall | null = null;
+    let minDist = Infinity;
+    let snapPos = { x: worldX, y: worldY };
+
+    walls.forEach(w => {
+      const dx = w.x2 - w.x1;
+      const dy = w.y2 - w.y1;
+      const lenSq = dx * dx + dy * dy;
+      if (lenSq === 0) return;
+
+      const t = Math.max(0, Math.min(1, ((worldX - w.x1) * dx + (worldY - w.y1) * dy) / lenSq));
+      const projX = w.x1 + t * dx;
+      const projY = w.y1 + t * dy;
+      const dist = Math.hypot(worldX - projX, worldY - projY);
+
+      if (dist < minDist) {
+        minDist = dist;
+        closestWall = w;
+        snapPos = { x: snap(projX), y: snap(projY) };
+      }
+    });
+
+    return { wall: closestWall, dist: minDist, snapPos };
+  };
+
   const handlePointerDown = (e: React.PointerEvent) => {
     if (activeTool === 'pan' || e.button === 1) {
       setIsPanning(true);
@@ -111,7 +173,9 @@ export const MapEditor: React.FC<MapEditorProps> = ({
       return;
     }
 
-    const world = screenToWorld(e.clientX, e.clientY);
+    const rawWorld = screenToWorld(e.clientX, e.clientY);
+    const snappedVertex = snapToNearbyVertex(rawWorld.x, rawWorld.y);
+    const world = snappedVertex.isSnapped ? { x: snappedVertex.x, y: snappedVertex.y } : rawWorld;
 
     if (activeTool === 'wall') {
       if (!wallStart) {
@@ -139,22 +203,39 @@ export const MapEditor: React.FC<MapEditorProps> = ({
         height: 5,
       });
     } else if (activeTool === 'door') {
+      // Require/encourage placement on a wall
+      const wallCheck = findClosestWall(world.x, world.y);
+      if (wallCheck.dist > 2.0) {
+        showValidation('Doors must be placed on a wall to create an opening.');
+        return;
+      }
       onAddDoor({
         id: `d-${Date.now()}`,
-        x: world.x,
-        y: world.y,
+        x: wallCheck.snapPos.x,
+        y: wallCheck.snapPos.y,
         width: 1.5,
       });
     } else if (activeTool === 'exit') {
+      // Snap exit to wall opening or outer perimeter
+      const wallCheck = findClosestWall(world.x, world.y);
+      const exitPos = wallCheck.dist < 2.5 ? wallCheck.snapPos : world;
+
       const exitCount = exits.length + 1;
       onAddExit({
         id: `ex-${Date.now()}`,
-        name: exitCount === 1 ? 'Main Exit' : exitCount === 2 ? 'Emergency Exit' : `Exit ${exitCount}`,
-        x: world.x,
-        y: world.y,
+        name: exitCount === 1 ? 'Main Exit' : exitCount === 2 ? 'Secondary Exit' : `Exit ${exitCount}`,
+        x: exitPos.x,
+        y: exitPos.y,
         type: exitCount === 1 ? 'emergency' : 'normal',
       });
     } else if (activeTool === 'obstacle') {
+      // Prevent accidental placement directly inside walls
+      const wallCheck = findClosestWall(world.x, world.y);
+      if (wallCheck.dist < 0.4) {
+        showValidation('Obstacles cannot be placed directly inside a wall.');
+        return;
+      }
+
       onAddObstacle({
         id: `obs-${Date.now()}`,
         name: `Obstacle ${obstacles.length + 1}`,
@@ -165,11 +246,18 @@ export const MapEditor: React.FC<MapEditorProps> = ({
         movable: true,
       });
     } else if (activeTool === 'person') {
+      // Snap to walkable area; prevent placement inside walls
+      const wallCheck = findClosestWall(world.x, world.y);
+      if (wallCheck.dist < 0.35) {
+        showValidation('People cannot be placed inside walls. Snapped to walkable area.');
+        return;
+      }
+
       onAddPerson({
         id: `p-${Date.now()}`,
         x: world.x,
         y: world.y,
-        label: `Person ${people.length + 1}`,
+        label: `P${people.length + 1}`,
       });
     } else if (activeTool === 'select') {
       // If clicked empty space, deselect
@@ -263,7 +351,7 @@ export const MapEditor: React.FC<MapEditorProps> = ({
         y1={p1.y}
         x2={p2.x}
         y2={p2.y}
-        stroke={isAxis ? '#0ea5e9' : x % 2 === 0 ? '#1e293b' : '#0f172a'}
+        stroke={isAxis ? '#94A3B8' : x % 2 === 0 ? '#E2E8F0' : '#F1F5F9'}
         strokeWidth={isAxis ? 1.5 : 1}
         strokeDasharray={isAxis ? undefined : x % 2 === 0 ? undefined : '2,2'}
       />
@@ -281,7 +369,7 @@ export const MapEditor: React.FC<MapEditorProps> = ({
         y1={p1.y}
         x2={p2.x}
         y2={p2.y}
-        stroke={isAxis ? '#0ea5e9' : y % 2 === 0 ? '#1e293b' : '#0f172a'}
+        stroke={isAxis ? '#94A3B8' : y % 2 === 0 ? '#E2E8F0' : '#F1F5F9'}
         strokeWidth={isAxis ? 1.5 : 1}
         strokeDasharray={isAxis ? undefined : y % 2 === 0 ? undefined : '2,2'}
       />
@@ -289,7 +377,7 @@ export const MapEditor: React.FC<MapEditorProps> = ({
   }
 
   return (
-    <div className="relative w-full h-[540px] bg-[#070b12] rounded-xl overflow-hidden border border-slate-800 shadow-2xl select-none">
+    <div className="relative w-full h-[540px] bg-white rounded-2xl overflow-hidden border border-[#E2E5E9] shadow-subtle select-none">
       <svg
         ref={svgRef}
         className={`w-full h-full ${
@@ -303,15 +391,8 @@ export const MapEditor: React.FC<MapEditorProps> = ({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
       >
-        <defs>
-          <radialGradient id="gridGlow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#082f49" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="#070b12" stopOpacity="0" />
-          </radialGradient>
-        </defs>
-
-        {/* Ambient center background glow */}
-        <rect x="0" y="0" width={viewWidth} height={viewHeight} fill="url(#gridGlow)" />
+        {/* Clean white blueprint base */}
+        <rect x="0" y="0" width={viewWidth} height={viewHeight} fill="#FFFFFF" />
 
         {/* Coordinate Grid */}
         <g id="grid">{gridLines}</g>
@@ -331,19 +412,19 @@ export const MapEditor: React.FC<MapEditorProps> = ({
                   y={topLeft.y}
                   width={w}
                   height={h}
-                  fill="rgba(14, 165, 233, 0.08)"
-                  stroke={isSelected ? '#38bdf8' : '#0284c7'}
+                  fill="rgba(37, 99, 235, 0.04)"
+                  stroke={isSelected ? '#2563EB' : '#94A3B8'}
                   strokeWidth={isSelected ? 2.5 : 1.5}
                   strokeDasharray="4,4"
                   rx={4}
-                  className="transition-colors hover:fill-cyan-500/20 cursor-pointer"
+                  className="transition-colors hover:fill-blue-500/10 cursor-pointer"
                 />
                 <text
                   x={topLeft.x + 8}
                   y={topLeft.y + 16}
-                  fill="#7dd3fc"
-                  fontSize="10"
-                  fontFamily="monospace"
+                  fill="#475467"
+                  fontSize="11"
+                  fontFamily="sans-serif"
                   fontWeight="600"
                   pointerEvents="none"
                 >
@@ -373,14 +454,14 @@ export const MapEditor: React.FC<MapEditorProps> = ({
                   strokeWidth={16}
                   className="cursor-pointer"
                 />
-                {/* Visible Wall Line */}
+                {/* Architectural Wall Line */}
                 <line
                   x1={p1.x}
                   y1={p1.y}
                   x2={p2.x}
                   y2={p2.y}
-                  stroke={isSelected ? '#38bdf8' : '#cbd5e1'}
-                  strokeWidth={isSelected ? 6 : 4}
+                  stroke={isSelected ? '#2563EB' : '#334155'}
+                  strokeWidth={isSelected ? 5.5 : 4}
                   strokeLinecap="round"
                   className="transition-all"
                 />
@@ -397,18 +478,36 @@ export const MapEditor: React.FC<MapEditorProps> = ({
             const w = (door.width || 1.5) * scale * zoom;
 
             return (
-              <g key={door.id} onClick={e => handleElementClick(e, 'door', door)}>
+              <g key={door.id} onClick={e => handleElementClick(e, 'door', door)} className="cursor-pointer">
+                {/* Wall opening gap */}
                 <line
                   x1={pos.x - w / 2}
                   y1={pos.y}
                   x2={pos.x + w / 2}
                   y2={pos.y}
-                  stroke={isSelected ? '#60a5fa' : '#3b82f6'}
-                  strokeWidth={5}
-                  strokeDasharray="4,3"
-                  className="cursor-pointer"
+                  stroke="#FFFFFF"
+                  strokeWidth={8}
                 />
-                <circle cx={pos.x} cy={pos.y} r={4} fill="#60a5fa" />
+                {/* Architectural Door Swing Arc */}
+                <path
+                  d={`M ${pos.x - w / 2} ${pos.y} A ${w * 0.85} ${w * 0.85} 0 0 1 ${pos.x - w / 2 + w * 0.6} ${pos.y - w * 0.6}`}
+                  fill="none"
+                  stroke={isSelected ? '#2563EB' : '#94A3B8'}
+                  strokeWidth={1.5}
+                  strokeDasharray="3,2"
+                />
+                {/* Door Leaf */}
+                <line
+                  x1={pos.x - w / 2}
+                  y1={pos.y}
+                  x2={pos.x - w / 2 + w * 0.6}
+                  y2={pos.y - w * 0.6}
+                  stroke={isSelected ? '#2563EB' : '#334155'}
+                  strokeWidth={2.5}
+                  strokeLinecap="round"
+                />
+                {/* Hinge point */}
+                <circle cx={pos.x - w / 2} cy={pos.y} r={3} fill={isSelected ? '#2563EB' : '#2563EB'} />
               </g>
             );
           })}
@@ -429,20 +528,20 @@ export const MapEditor: React.FC<MapEditorProps> = ({
                   y={pos.y - h / 2}
                   width={w}
                   height={h}
-                  fill="rgba(245, 158, 11, 0.25)"
-                  stroke={isSelected ? '#fbbf24' : '#d97706'}
+                  fill="rgba(245, 158, 11, 0.15)"
+                  stroke={isSelected ? '#D97706' : '#F59E0B'}
                   strokeWidth={isSelected ? 2.5 : 1.5}
-                  rx={2}
-                  className="cursor-pointer hover:fill-amber-500/40 transition-colors"
+                  rx={3}
+                  className="cursor-pointer hover:fill-amber-500/25 transition-colors"
                 />
                 <text
                   x={pos.x}
                   y={pos.y + 3}
                   textAnchor="middle"
-                  fill="#fef08a"
-                  fontSize="9"
-                  fontFamily="monospace"
-                  fontWeight="bold"
+                  fill="#92400E"
+                  fontSize="9.5"
+                  fontFamily="sans-serif"
+                  fontWeight="600"
                   pointerEvents="none"
                 >
                   {obs.name}
@@ -452,37 +551,42 @@ export const MapEditor: React.FC<MapEditorProps> = ({
           })}
         </g>
 
-        {/* Exits */}
+        {/* Exits with Smart Non-Clipping Labeling */}
         <g id="exits">
           {exits.map(exit => {
             const pos = worldToSvg(exit.x, exit.y);
             const isSelected = selectedElement?.data.id === exit.id;
             const isEmergency = exit.type === 'emergency';
-            const color = isEmergency ? '#10b981' : '#06b6d4';
+            const color = isEmergency ? '#16A34A' : '#0D9488';
+
+            // Smart label positioning: prevent clipping near viewport borders
+            const labelY = pos.y < 45 ? pos.y + 24 : pos.y - 18;
+            const textAnchor = pos.x > viewWidth - 90 ? 'end' : pos.x < 90 ? 'start' : 'middle';
+            const labelX = pos.x > viewWidth - 90 ? pos.x - 14 : pos.x < 90 ? pos.x + 14 : pos.x;
 
             return (
               <g key={exit.id} onClick={e => handleElementClick(e, 'exit', exit)}>
                 <circle
                   cx={pos.x}
                   cy={pos.y}
-                  r={14}
-                  fill={`${color}22`}
-                  stroke={isSelected ? '#34d399' : color}
-                  strokeWidth={isSelected ? 3 : 2}
+                  r={12}
+                  fill={`${color}15`}
+                  stroke={isSelected ? '#15803D' : color}
+                  strokeWidth={isSelected ? 2.5 : 1.5}
                   className="cursor-pointer hover:scale-110 transition-transform"
                 />
-                <circle cx={pos.x} cy={pos.y} r={6} fill={color} />
+                <circle cx={pos.x} cy={pos.y} r={4.5} fill={color} />
                 <text
-                  x={pos.x}
-                  y={pos.y - 18}
-                  textAnchor="middle"
+                  x={labelX}
+                  y={labelY}
+                  textAnchor={textAnchor}
                   fill={color}
-                  fontSize="11"
-                  fontFamily="monospace"
+                  fontSize="10.5"
+                  fontFamily="sans-serif"
                   fontWeight="bold"
                   pointerEvents="none"
                 >
-                  {exit.name}
+                  {exit.name.toUpperCase()}
                 </text>
               </g>
             );
@@ -500,23 +604,24 @@ export const MapEditor: React.FC<MapEditorProps> = ({
                 <circle
                   cx={pos.x}
                   cy={pos.y}
-                  r={8}
-                  fill="#c084fc"
-                  stroke={isSelected ? '#f3e8ff' : '#9333ea'}
+                  r={6.5}
+                  fill="#2563EB"
+                  stroke={isSelected ? '#1D4ED8' : '#93C5FD'}
                   strokeWidth={isSelected ? 2.5 : 1.5}
-                  className="cursor-pointer hover:scale-125 transition-transform"
+                  className="cursor-pointer hover:scale-125 transition-transform shadow-xs"
                 />
-                <circle cx={pos.x} cy={pos.y} r={3} fill="#ffffff" />
+                <circle cx={pos.x} cy={pos.y} r={2} fill="#FFFFFF" />
                 <text
                   x={pos.x}
-                  y={pos.y + 16}
+                  y={pos.y + 14}
                   textAnchor="middle"
-                  fill="#e9d5ff"
+                  fill="#475467"
                   fontSize="9"
-                  fontFamily="monospace"
+                  fontFamily="sans-serif"
+                  fontWeight="600"
                   pointerEvents="none"
                 >
-                  {person.label || 'Person'}
+                  {person.label || 'P'}
                 </text>
               </g>
             );
@@ -537,18 +642,19 @@ export const MapEditor: React.FC<MapEditorProps> = ({
                     y1={p1.y}
                     x2={p2.x}
                     y2={p2.y}
-                    stroke="#22d3ee"
-                    strokeWidth={3}
+                    stroke="#2563EB"
+                    strokeWidth={2.5}
                     strokeDasharray="4,4"
                   />
-                  <circle cx={p1.x} cy={p1.y} r={5} fill="#22d3ee" />
-                  <circle cx={p2.x} cy={p2.y} r={5} fill="#22d3ee" />
+                  <circle cx={p1.x} cy={p1.y} r={4.5} fill="#2563EB" />
+                  <circle cx={p2.x} cy={p2.y} r={4.5} fill="#2563EB" />
                   <text
                     x={(p1.x + p2.x) / 2 + 10}
                     y={(p1.y + p2.y) / 2 - 10}
-                    fill="#a5f3fc"
+                    fill="#2563EB"
                     fontSize="10"
                     fontFamily="monospace"
+                    fontWeight="600"
                   >
                     {dist.toFixed(1)}m
                   </text>
@@ -559,19 +665,51 @@ export const MapEditor: React.FC<MapEditorProps> = ({
         )}
       </svg>
 
+      {/* Small Compact Legend (WALL | DOOR | EXIT | PERSON | OBSTACLE) */}
+      <div className="absolute top-3 right-3 px-3 py-1.5 rounded-lg bg-white/95 border border-[#E2E5E9] shadow-xs flex items-center space-x-3 text-[10px] font-sans font-semibold text-[#475467] pointer-events-none select-none">
+        <div className="flex items-center space-x-1.5">
+          <span className="w-3.5 h-1 bg-[#334155] rounded-xs inline-block" />
+          <span>WALL</span>
+        </div>
+        <div className="flex items-center space-x-1.5">
+          <span className="w-3.5 h-1 border-t-2 border-dashed border-[#94A3B8] inline-block" />
+          <span>DOOR</span>
+        </div>
+        <div className="flex items-center space-x-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#16A34A] inline-block" />
+          <span>EXIT</span>
+        </div>
+        <div className="flex items-center space-x-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#2563EB] inline-block" />
+          <span>PERSON</span>
+        </div>
+        <div className="flex items-center space-x-1.5">
+          <span className="w-2.5 h-2.5 rounded-xs bg-[#F59E0B] inline-block" />
+          <span>OBSTACLE</span>
+        </div>
+      </div>
+
+      {/* Validation Notice Overlay */}
+      {validationMsg && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3.5 py-1.5 rounded-lg bg-[#FEF2F2] border border-[#FCA5A5] text-[#DC2626] font-sans text-xs font-semibold shadow-md flex items-center space-x-2 animate-fade-in pointer-events-none">
+          <span>⚠️</span>
+          <span>{validationMsg}</span>
+        </div>
+      )}
+
       {/* Coordinate & Tool Status Badge */}
-      <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-lg bg-slate-950/80 border border-slate-800/80 backdrop-blur-md flex items-center space-x-3 text-[11px] font-mono text-slate-400">
+      <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-lg bg-white/95 border border-[#E2E5E9] shadow-xs flex items-center space-x-3 text-[11px] font-sans text-[#667085]">
         <div>
-          TOOL: <span className="text-cyan-400 uppercase font-bold">{activeTool}</span>
+          Tool: <span className="text-[#2563EB] uppercase font-semibold">{activeTool}</span>
         </div>
-        <div className="text-slate-600">|</div>
+        <div className="text-[#E2E5E9]">|</div>
         <div>
-          CURSOR: X: <span className="text-slate-200">{cursorPos.x.toFixed(1)}m</span>, Y:{' '}
-          <span className="text-slate-200">{cursorPos.y.toFixed(1)}m</span>
+          Cursor: X: <span className="text-[#172033] font-medium">{cursorPos.x.toFixed(1)}m</span>, Y:{' '}
+          <span className="text-[#172033] font-medium">{cursorPos.y.toFixed(1)}m</span>
         </div>
-        <div className="text-slate-600">|</div>
+        <div className="text-[#E2E5E9]">|</div>
         <div>
-          ZOOM: <span className="text-slate-200">{Math.round(zoom * 100)}%</span>
+          Zoom: <span className="text-[#172033] font-medium">{Math.round(zoom * 100)}%</span>
         </div>
       </div>
     </div>

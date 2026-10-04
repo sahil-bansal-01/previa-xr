@@ -23,91 +23,84 @@ export const Preloader: React.FC<PreloaderProps> = ({ onComplete, duration = 180
         <motion.div
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.6, ease: 'easeInOut' }}
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#07090e] select-none cyber-grid-bg overflow-hidden"
+          transition={{ duration: 0.5, ease: 'easeInOut' }}
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#F7F8FA] select-none spatial-grid-bg overflow-hidden"
         >
-          {/* Spatial Grid Scan Effect */}
-          <div className="absolute inset-0 pointer-events-none">
-            {/* Expanding radial scan circle */}
+          {/* Subtle Spatial Pulse Effect */}
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
             <motion.div
-              initial={{ scale: 0.2, opacity: 0.8 }}
-              animate={{ scale: 3.5, opacity: 0 }}
-              transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut' }}
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full border border-cyan-400/40"
-            />
-            {/* Horizontal scan line */}
-            <motion.div
-              initial={{ top: '0%' }}
-              animate={{ top: '100%' }}
-              transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
-              className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-400/60 to-transparent shadow-[0_0_15px_rgba(0,240,255,0.8)]"
+              initial={{ scale: 0.8, opacity: 0.4 }}
+              animate={{ scale: 2.2, opacity: 0 }}
+              transition={{ duration: 1.8, repeat: Infinity, ease: 'easeOut' }}
+              className="w-72 h-72 rounded-full border border-blue-400/20"
             />
           </div>
 
-          {/* Central Logo & Parallel Paths Symbol */}
+          {/* Central Logo & Architectural Spatial Symbol */}
           <div className="relative z-10 flex flex-col items-center">
-            {/* Isometric Parallel Diverging Paths Symbol */}
-            <div className="relative w-24 h-24 mb-6 flex items-center justify-center">
-              <svg className="w-full h-full text-cyan-400" viewBox="0 0 100 100" fill="none">
-                {/* 3D Wireframe Hex Grid */}
+            {/* Geometric Spatial Node Symbol */}
+            <div className="relative w-20 h-20 mb-5 flex items-center justify-center bg-white rounded-2xl border border-[#E2E5E9] shadow-sm p-4">
+              <svg className="w-full h-full text-[#2563EB]" viewBox="0 0 100 100" fill="none">
+                {/* Architectural blueprint box */}
                 <polygon
-                  points="50,10 88,32 88,78 50,98 12,78 12,32"
-                  stroke="#1e293b"
-                  strokeWidth="2"
+                  points="50,12 88,34 88,76 50,96 12,76 12,34"
+                  stroke="#CBD5E1"
+                  strokeWidth="2.5"
+                  strokeDasharray="4 2"
                   fill="none"
                 />
-                {/* Parallel Paths diverging */}
+                {/* Decision Paths diverging */}
                 <motion.path
-                  d="M50,90 L50,55 L25,30"
-                  stroke="#38bdf8"
+                  d="M50,86 L50,52 L26,32"
+                  stroke="#2563EB"
                   strokeWidth="3.5"
                   strokeLinecap="round"
                   initial={{ pathLength: 0 }}
                   animate={{ pathLength: 1 }}
-                  transition={{ duration: 1.2, ease: 'easeInOut' }}
+                  transition={{ duration: 1.0, ease: 'easeInOut' }}
                 />
                 <motion.path
-                  d="M50,90 L50,55 L75,30"
-                  stroke="#8b5cf6"
+                  d="M50,86 L50,52 L74,32"
+                  stroke="#14B8A6"
                   strokeWidth="3.5"
                   strokeLinecap="round"
                   initial={{ pathLength: 0 }}
                   animate={{ pathLength: 1 }}
-                  transition={{ duration: 1.2, ease: 'easeInOut', delay: 0.2 }}
+                  transition={{ duration: 1.0, ease: 'easeInOut', delay: 0.2 }}
                 />
-                {/* Decision Junction Pulse */}
-                <circle cx="50" cy="55" r="4.5" fill="#00f0ff" className="animate-ping" />
-                <circle cx="50" cy="55" r="3" fill="#ffffff" />
+                {/* Decision Junction Marker */}
+                <circle cx="50" cy="52" r="4.5" fill="#2563EB" />
+                <circle cx="50" cy="52" r="2" fill="#FFFFFF" />
               </svg>
             </div>
 
             {/* Brand Title */}
             <motion.h1
-              initial={{ opacity: 0, y: 12 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className="text-4xl md:text-5xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-slate-100 via-cyan-200 to-indigo-300 font-mono"
+              transition={{ duration: 0.4, delay: 0.15 }}
+              className="text-3xl md:text-4xl font-black tracking-wider text-[#172033]"
             >
-              PREVIA XR
+              PREVIA <span className="text-[#2563EB]">XR</span>
             </motion.h1>
 
             {/* Tagline */}
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.4 }}
-              className="text-sm md:text-base font-medium text-cyan-300 tracking-wider mt-2 uppercase font-mono"
+              transition={{ duration: 0.4, delay: 0.3 }}
+              className="text-xs md:text-sm font-semibold text-[#667085] tracking-widest mt-2 uppercase"
             >
-              Preview Before You Act.
+              Spatial Decision Intelligence
             </motion.p>
 
-            {/* Sub-bar */}
-            <div className="w-48 h-1 bg-slate-800 rounded-full mt-6 overflow-hidden">
+            {/* Clean Progress Indicator */}
+            <div className="w-40 h-1 bg-[#E2E5E9] rounded-full mt-6 overflow-hidden">
               <motion.div
                 initial={{ width: '0%' }}
                 animate={{ width: '100%' }}
-                transition={{ duration: 1.4, ease: 'easeInOut' }}
-                className="h-full bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-500"
+                transition={{ duration: 1.2, ease: 'easeInOut' }}
+                className="h-full bg-[#2563EB]"
               />
             </div>
           </div>

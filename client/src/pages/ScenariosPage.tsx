@@ -112,33 +112,33 @@ export const ScenariosPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#07090e] p-6 md:p-10 max-w-7xl mx-auto flex flex-col space-y-8">
+    <div className="min-h-screen bg-[#F7F8FA] p-6 md:p-10 max-w-7xl mx-auto flex flex-col space-y-8 text-[#172033]">
       {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#E2E5E9] pb-6">
         <div>
-          <span className="text-xs font-mono uppercase tracking-widest text-cyan-400 font-semibold">
+          <span className="text-xs font-sans uppercase tracking-widest text-[#2563EB] font-bold">
             Scenario Management
           </span>
-          <h1 className="text-2xl md:text-3xl font-extrabold font-mono text-slate-100 mt-1">
+          <h1 className="text-2xl md:text-3xl font-extrabold font-sans text-[#172033] mt-1">
             Spatial Simulation Scenarios
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-[#667085] mt-1 font-sans">
             Persisted 3D indoor configurations with pre-configured obstacle placements and occupants.
           </p>
         </div>
 
         <button
           onClick={() => setNewModalOpen(true)}
-          className="px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-mono font-bold text-xs uppercase tracking-wider flex items-center space-x-2 transition-all shadow-md shadow-cyan-500/20"
+          className="px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-sans font-bold text-xs uppercase tracking-wider flex items-center space-x-2 transition-all shadow-md hover:shadow-lg"
         >
-          <Plus className="w-4 h-4 text-slate-950" />
+          <Plus className="w-4 h-4 text-white" />
           <span>CREATE NEW SCENARIO</span>
         </button>
       </div>
 
       {/* Scenarios Grid */}
       {loading ? (
-        <div className="p-12 text-center text-slate-400 font-mono text-xs">
+        <div className="p-12 text-center text-[#667085] font-sans text-xs">
           Loading persisted scenarios from MongoDB...
         </div>
       ) : (
@@ -150,15 +150,15 @@ export const ScenariosPage: React.FC = () => {
             return (
               <div
                 key={scenId}
-                className="bg-slate-900/60 rounded-2xl border border-slate-800/90 hover:border-slate-700 transition-all p-5 flex flex-col justify-between space-y-4 shadow-xl"
+                className="bg-white rounded-2xl border border-[#E2E5E9] hover:border-[#2563EB] transition-all p-6 flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md"
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800/60 flex items-center space-x-1">
-                      <Building className="w-3 h-3 text-cyan-400" />
+                    <span className="text-[10px] font-sans font-semibold px-2.5 py-0.5 rounded-full bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE] flex items-center space-x-1">
+                      <Building className="w-3 h-3 text-[#2563EB]" />
                       <span>{scen.environmentType || 'Campus Facility'}</span>
                     </span>
-                    <span className="text-[10px] font-mono text-slate-500">
+                    <span className="text-[11px] font-sans text-[#667085]">
                       {scen.createdAt ? new Date(scen.createdAt).toLocaleDateString() : 'Active'}
                     </span>
                   </div>
@@ -170,18 +170,18 @@ export const ScenariosPage: React.FC = () => {
                         type="text"
                         value={editTitle}
                         onChange={e => setEditTitle(e.target.value)}
-                        className="flex-1 bg-slate-950 border border-cyan-500 rounded px-2 py-1 text-xs text-slate-100 font-mono focus:outline-none"
+                        className="flex-1 bg-white border border-[#2563EB] rounded-lg px-2.5 py-1 text-xs text-[#172033] font-sans focus:outline-none shadow-xs"
                       />
                       <button
                         onClick={() => handleSaveRename(scenId)}
-                        className="p-1 bg-cyan-600 rounded text-slate-950 hover:bg-cyan-500"
+                        className="p-1.5 bg-[#2563EB] rounded-lg text-white hover:bg-[#1D4ED8]"
                         title="Save"
                       >
                         <Check className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => setEditingId(null)}
-                        className="p-1 bg-slate-800 rounded text-slate-300 hover:bg-slate-700"
+                        className="p-1.5 bg-white border border-[#E2E5E9] rounded-lg text-[#667085] hover:bg-[#F1F3F5]"
                         title="Cancel"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -189,12 +189,12 @@ export const ScenariosPage: React.FC = () => {
                     </div>
                   ) : (
                     <div className="flex items-start justify-between">
-                      <h3 className="text-base font-bold text-slate-100 font-mono">
+                      <h3 className="text-base font-bold text-[#172033] font-sans">
                         {scen.title}
                       </h3>
                       <button
                         onClick={() => handleStartRename(scen)}
-                        className="text-slate-500 hover:text-slate-300 p-1 transition-colors"
+                        className="text-[#667085] hover:text-[#172033] p-1 transition-colors"
                         title="Rename Scenario"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
@@ -202,47 +202,47 @@ export const ScenariosPage: React.FC = () => {
                     </div>
                   )}
 
-                  <p className="text-xs text-slate-400 mt-2 line-clamp-3 leading-relaxed">
+                  <p className="text-xs text-[#667085] mt-2 line-clamp-3 leading-relaxed font-sans">
                     {scen.description || 'Pre-configured indoor layout with occupants and emergency exits.'}
                   </p>
 
-                  <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono text-slate-400">
-                    <span>Occupants: <strong className="text-slate-200">10</strong></span>
-                    <span>Exits: <strong className="text-emerald-400">3 Portals</strong></span>
-                    <span>Grid: <strong className="text-slate-200">24x16</strong></span>
+                  <div className="mt-4 pt-3 border-t border-[#E2E5E9] flex items-center justify-between text-[11px] font-sans text-[#667085]">
+                    <span>Occupants: <strong className="text-[#172033]">10</strong></span>
+                    <span>Exits: <strong className="text-[#16A34A]">3 Portals</strong></span>
+                    <span>Grid: <strong className="text-[#172033]">24x16</strong></span>
                   </div>
                 </div>
 
                 {/* Card Actions */}
-                <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                <div className="space-y-2 pt-2 border-t border-[#E2E5E9]">
                   <button
                     onClick={() => handleLoadIntoSimulator(scenId)}
-                    className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-xs font-mono uppercase tracking-wider flex items-center justify-center space-x-1.5 transition-all shadow-md shadow-cyan-500/10"
+                    className="w-full py-2.5 px-3 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs font-sans uppercase tracking-wider flex items-center justify-center space-x-1.5 transition-all shadow-sm hover:shadow-md"
                   >
                     <Play className="w-3.5 h-3.5 fill-current" />
-                    <span>LOAD INTO 3D SIMULATOR</span>
+                    <span>LOAD INTO 3D SIMULATOR &rarr;</span>
                   </button>
 
-                  <div className="grid grid-cols-3 gap-1.5 text-xs font-mono">
+                  <div className="grid grid-cols-3 gap-2 text-xs font-sans">
                     <button
                       onClick={() => handleDuplicate(scenId)}
-                      className="py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded flex items-center justify-center space-x-1 transition-colors"
+                      className="py-1.5 px-2 bg-white hover:bg-[#F1F3F5] text-[#172033] border border-[#E2E5E9] rounded-lg flex items-center justify-center space-x-1 transition-colors shadow-xs"
                       title="Duplicate"
                     >
-                      <Copy className="w-3 h-3 text-cyan-400" />
+                      <Copy className="w-3 h-3 text-[#2563EB]" />
                       <span>Clone</span>
                     </button>
                     <button
                       onClick={() => handleReset(scenId)}
-                      className="py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded flex items-center justify-center space-x-1 transition-colors"
+                      className="py-1.5 px-2 bg-white hover:bg-[#F1F3F5] text-[#172033] border border-[#E2E5E9] rounded-lg flex items-center justify-center space-x-1 transition-colors shadow-xs"
                       title="Reset to default environment"
                     >
-                      <RotateCcw className="w-3 h-3 text-amber-400" />
+                      <RotateCcw className="w-3 h-3 text-[#F59E0B]" />
                       <span>Reset</span>
                     </button>
                     <button
                       onClick={() => handleDelete(scenId)}
-                      className="py-1.5 px-2 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 rounded flex items-center justify-center space-x-1 transition-colors"
+                      className="py-1.5 px-2 bg-white hover:bg-[#FEF2F2] text-[#DC2626] border border-[#E2E5E9] hover:border-[#FCA5A5] rounded-lg flex items-center justify-center space-x-1 transition-colors shadow-xs"
                       title="Delete Scenario"
                     >
                       <Trash2 className="w-3 h-3" />
@@ -258,15 +258,15 @@ export const ScenariosPage: React.FC = () => {
 
       {/* Create New Scenario Modal */}
       {newModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-sm font-bold font-mono uppercase text-slate-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#172033]/60 backdrop-blur-sm p-4">
+          <div className="bg-white border border-[#E2E5E9] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#E2E5E9] pb-3">
+              <h3 className="text-sm font-bold font-sans uppercase text-[#172033]">
                 Create New Spatial Scenario
               </h3>
               <button
                 onClick={() => setNewModalOpen(false)}
-                className="text-slate-400 hover:text-slate-200"
+                className="text-[#667085] hover:text-[#172033] p-1 rounded-lg hover:bg-[#F1F3F5]"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -274,7 +274,7 @@ export const ScenariosPage: React.FC = () => {
 
             <form onSubmit={handleCreateNew} className="space-y-4">
               <div>
-                <label className="block text-xs font-mono uppercase text-slate-400 mb-1">
+                <label className="block text-xs font-sans font-semibold uppercase text-[#667085] mb-1">
                   Scenario Title
                 </label>
                 <input
@@ -283,12 +283,12 @@ export const ScenariosPage: React.FC = () => {
                   placeholder="e.g. Science Wing Corridor Blockage"
                   value={newTitle}
                   onChange={e => setNewTitle(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none"
+                  className="w-full bg-white border border-[#E2E5E9] focus:border-[#2563EB] rounded-xl px-3 py-2 text-sm text-[#172033] focus:outline-none shadow-xs"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-mono uppercase text-slate-400 mb-1">
+                <label className="block text-xs font-sans font-semibold uppercase text-[#667085] mb-1">
                   Description
                 </label>
                 <textarea
@@ -296,23 +296,23 @@ export const ScenariosPage: React.FC = () => {
                   placeholder="Describe the spatial testing parameters..."
                   value={newDesc}
                   onChange={e => setNewDesc(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none resize-none"
+                  className="w-full bg-white border border-[#E2E5E9] focus:border-[#2563EB] rounded-xl px-3 py-2 text-sm text-[#172033] focus:outline-none resize-none shadow-xs"
                 />
               </div>
 
-              <div className="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+              <div className="flex justify-end space-x-2 pt-2 border-t border-[#E2E5E9]">
                 <button
                   type="button"
                   onClick={() => setNewModalOpen(false)}
-                  className="px-4 py-2 rounded-lg bg-slate-800 text-xs text-slate-300"
+                  className="px-4 py-2 rounded-xl bg-white hover:bg-[#F1F3F5] text-xs font-semibold text-[#172033] border border-[#E2E5E9] shadow-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold text-xs font-mono uppercase"
+                  className="px-5 py-2 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs font-sans uppercase shadow-md hover:shadow-lg"
                 >
-                  Create & Save
+                  Create &amp; Save
                 </button>
               </div>
             </form>

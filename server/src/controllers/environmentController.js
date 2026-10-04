@@ -8,10 +8,12 @@ export async function uploadFiles(req, res, next) {
       return res.status(400).json({ error: true, message: 'No files were uploaded.' });
     }
 
+    const envId = req.environmentId || 'default';
+    const subfolder = req.query.type === 'frame' ? 'frames' : 'original';
     const uploadedDetails = files.map(f => ({
       originalName: f.originalname,
       filename: f.filename,
-      path: `/uploads/${f.filename}`,
+      path: `/uploads/${envId}/${subfolder}/${f.filename}`,
       size: f.size,
       mimetype: f.mimetype,
       isImage: f.mimetype.startsWith('image/'),
@@ -21,6 +23,7 @@ export async function uploadFiles(req, res, next) {
     res.json({
       success: true,
       message: 'Files uploaded successfully.',
+      environmentId: envId,
       files: uploadedDetails
     });
   } catch (err) {

@@ -94,12 +94,19 @@ export function environmentToNavigationGraph(
   // 3. Convert Exits (Supports ANY custom name: Main Exit, North Fire Exit, etc.)
   const exits: ExitZone[] = (environment.exits || []).map((ex, i) => {
     const isPrimary = i === 0 || ex.type === 'emergency';
-    const color = ex.type === 'emergency' ? '#10b981' : i === 1 ? '#38bdf8' : '#a855f7';
+    const color = ex.type === 'emergency' ? '#16a34a' : '#2563eb';
+    // Compute walkable interior entry threshold: 1.2m inward towards room center
+    const dirX = ex.x !== 0 ? -Math.sign(ex.x) : 0;
+    const dirY = ex.y !== 0 ? -Math.sign(ex.y) : 0;
+    const entryX = ex.x + dirX * 1.2;
+    const entryY = ex.y + dirY * 1.2;
+
     return {
       id: ex.id || `exit-${i + 1}`,
       name: ex.name || `Exit ${i + 1}`,
-      label: ex.name.toUpperCase(),
+      label: ex.name ? ex.name.toUpperCase() : `EXIT ${i + 1}`,
       position: [ex.x, 0, ex.y],
+      walkableEntryCell: [entryX, 0, entryY],
       color,
       isBlocked: false,
       isPrimary,
@@ -124,23 +131,31 @@ export function environmentToNavigationGraph(
   pathfinder.bakeWalls(walls);
   pathfinder.updateObstacles(obstacles);
 
-  // 6. Convert People & Calculate Initial A* Paths
+  // 6. Convert People & Calculate Initial A* Paths (Independent per-agent evaluation)
   const agents: Agent[] = (environment.people || []).map((p, i) => {
-    // Find closest exit
-    let closestExit = exits[0];
-    let minDist = Infinity;
+    const candidatePaths: Array<{ exit: ExitZone; path: [number, number, number][]; cost: number }> = [];
+
     exits.forEach(ex => {
-      const dist = Math.sqrt(Math.pow(ex.position[0] - p.x, 2) + Math.pow(ex.position[2] - p.y, 2));
-      if (dist < minDist) {
-        minDist = dist;
-        closestExit = ex;
+      const res = pathfinder.findPathToExit(p.x, p.y, ex);
+      if (res.reachable && res.path.length > 0) {
+        candidatePaths.push({ exit: ex, path: res.path, cost: res.cost });
       }
     });
 
-    const targetExitId = closestExit ? closestExit.id : 'exit-1';
-    const exitPos = closestExit ? closestExit.position : [0, 0, 0];
+    let chosenExit = exits[0];
+    let chosenPath: [number, number, number][] = [];
+    let chosenCost = 0;
 
-    const initialPath = pathfinder.findPath(p.x, p.y, exitPos[0], exitPos[2]);
+    if (candidatePaths.length > 0) {
+      candidatePaths.sort((a, b) => a.cost - b.cost);
+      chosenExit = candidatePaths[0].exit;
+      chosenPath = candidatePaths[0].path;
+      chosenCost = candidatePaths[0].cost;
+    } else if (exits.length > 0) {
+      chosenExit = exits[0];
+      chosenPath = pathfinder.findPath(p.x, p.y, chosenExit.position[0], chosenExit.position[2]);
+      chosenCost = PathfindingEngine.calculatePathLength(chosenPath);
+    }
 
     const colors = ['#00f0ff', '#38bdf8', '#818cf8', '#a855f7', '#c084fc'];
     const agentColor = colors[i % colors.length];
@@ -150,14 +165,19 @@ export function environmentToNavigationGraph(
       name: p.label || `Person ${i + 1}`,
       startPos: [p.x, 0.4, p.y],
       currentPos: [p.x, 0.4, p.y],
-      targetExit: targetExitId,
-      originalExit: targetExitId,
-      path: initialPath,
-      originalPath: initialPath,
+      targetExit: chosenExit ? chosenExit.id : 'exit-1',
+      originalExit: chosenExit ? chosenExit.id : 'exit-1',
+      baselineExit: chosenExit ? chosenExit.id : 'exit-1',
+      path: chosenPath,
+      originalPath: chosenPath,
+      baselinePath: chosenPath,
+      baselineCost: chosenCost,
       status: 'Moving',
       progress: 0,
       speed: 1.05 + (i % 3) * 0.1,
       color: agentColor,
+      isRerouted: false,
+      isUnreachable: false,
     };
   });
 

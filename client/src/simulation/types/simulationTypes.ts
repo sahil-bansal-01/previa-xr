@@ -1,4 +1,4 @@
-export type AgentStatus = 'Moving' | 'Rerouting' | 'Delayed' | 'Reached Exit';
+export type AgentStatus = 'Moving' | 'Rerouting' | 'Delayed' | 'Reached Exit' | 'Unreachable';
 
 export interface Agent {
   id: string;
@@ -14,6 +14,15 @@ export interface Agent {
   speed: number;
   color: string;
   rerouteDistanceDelta?: number;
+  baselineExit?: string;
+  baselinePath?: [number, number, number][];
+  baselineCost?: number;
+  futureExit?: string;
+  futurePath?: [number, number, number][];
+  futureCost?: number;
+  isRerouted?: boolean;
+  isUnreachable?: boolean;
+  heading?: number;
 }
 
 export interface ExitZone {
@@ -27,6 +36,7 @@ export interface ExitZone {
   width?: number;
   capacity: string;
   type?: 'emergency' | 'normal';
+  walkableEntryCell?: [number, number, number];
 }
 
 export interface WallSegment {
@@ -63,6 +73,7 @@ export interface ConsequenceResult {
   riskLevel: RiskLevel;
   blockedExits: string[];
   affectedPeople: number;
+  reroutedPeople?: number;
   totalPeople: number;
   congestionLevel: string;
   congestionPercent: number;
@@ -70,6 +81,9 @@ export interface ConsequenceResult {
   recommendedExit: string;
   bottleneckLocation: string;
   evacuationRate: number; // percentage completed
+  unreachablePeople?: number;
+  congestionHotspots?: Array<{ x: number; z: number; count: number; level: 'LOW' | 'MEDIUM' | 'HIGH' }>;
+  whySentence?: string;
   timestamp: string;
   scenarioTitle?: string;
   actionSummary?: string;

@@ -29,6 +29,9 @@ export const SimulationRunModel = {
     if (query.scenarioId) {
       runs = runs.filter(r => r.scenarioId === query.scenarioId);
     }
+    if (query.environmentId) {
+      runs = runs.filter(r => r.environmentId === query.environmentId);
+    }
     if (query.userId) {
       runs = runs.filter(r => r.userId === query.userId);
     }

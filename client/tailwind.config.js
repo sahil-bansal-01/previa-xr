@@ -8,39 +8,33 @@ export default {
     extend: {
       colors: {
         previa: {
-          bg: "#07090e",
-          surface: "#0d111c",
-          surfaceLight: "#141b2d",
-          border: "#1e293b",
-          borderHighlight: "#334155",
-          cyan: "#00f0ff",
-          cyanGlow: "rgba(0, 240, 255, 0.25)",
-          violet: "#8b5cf6",
-          violetGlow: "rgba(139, 92, 246, 0.25)",
-          accent: "#38bdf8",
-          hazard: "#f59e0b",
-          danger: "#ef4444",
-          success: "#10b981",
+          bg: "#F7F8FA",
+          surface: "#FFFFFF",
+          surfaceSoft: "#F1F3F5",
+          border: "#E2E5E9",
+          borderHighlight: "#CBD5E1",
+          primary: "#2563EB",
+          primaryHover: "#1D4ED8",
+          primaryLight: "#EFF6FF",
+          secondary: "#14B8A6",
+          textPrimary: "#172033",
+          textSecondary: "#667085",
+          textMuted: "#98A2B3",
+          hazard: "#F59E0B",
+          danger: "#DC2626",
+          dangerLight: "#FEF2F2",
+          success: "#16A34A",
+          successLight: "#F0FDF4",
         }
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
-      animation: {
-        'scanline': 'scan 4s linear infinite',
-        'pulse-subtle': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        'glow-cyan': 'glowCyan 2s ease-in-out infinite alternate',
-      },
-      keyframes: {
-        scan: {
-          '0%': { transform: 'translateY(-100%)' },
-          '100%': { transform: 'translateY(1000%)' },
-        },
-        glowCyan: {
-          '0%': { boxShadow: '0 0 10px rgba(0, 240, 255, 0.2)' },
-          '100%': { boxShadow: '0 0 25px rgba(0, 240, 255, 0.6)' },
-        }
+      boxShadow: {
+        'subtle': '0 1px 3px 0 rgba(16, 24, 40, 0.05), 0 1px 2px -1px rgba(16, 24, 40, 0.05)',
+        'elevated': '0 4px 6px -1px rgba(16, 24, 40, 0.07), 0 2px 4px -2px rgba(16, 24, 40, 0.05)',
+        'card': '0 10px 15px -3px rgba(16, 24, 40, 0.05), 0 4px 6px -4px rgba(16, 24, 40, 0.03)',
       }
     },
   },

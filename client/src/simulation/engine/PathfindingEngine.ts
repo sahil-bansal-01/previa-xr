@@ -1,4 +1,4 @@
-import { WallSegment, ObstacleState } from '../types/simulationTypes';
+import { Agent, ExitZone, WallSegment, ObstacleState } from '../types/simulationTypes';
 
 export interface GridNode {
   x: number;
@@ -71,7 +71,7 @@ export class PathfindingEngine {
       }
     }
 
-    const padding = 0.25; // buffer for agent radius
+    const padding = 0.2; // buffer for agent radius
 
     for (const wall of walls) {
       const minX = wall.x - wall.width / 2 - padding;
@@ -357,4 +357,292 @@ export class PathfindingEngine {
     }
     return length;
   }
+
+  // Check if a target exit/point is genuinely reachable, and return its path and cost
+  public findPathWithCost(
+    startX: number,
+    startZ: number,
+    targetX: number,
+    targetZ: number,
+    reachThreshold = 2.0
+  ): { path: [number, number, number][]; reachable: boolean; cost: number } {
+    const start = this.worldToGrid(startX, startZ);
+    const target = this.worldToGrid(targetX, targetZ);
+
+    let startCol = start.col;
+    let startRow = start.row;
+    if (!this.currentGrid[startCol][startRow]) {
+      const free = this.findNearestWalkable(startCol, startRow);
+      if (free) {
+        startCol = free.col;
+        startRow = free.row;
+      } else {
+        return { path: [], reachable: false, cost: Infinity };
+      }
+    }
+
+    let targetCol = target.col;
+    let targetRow = target.row;
+    if (!this.currentGrid[targetCol][targetRow]) {
+      const free = this.findNearestWalkable(targetCol, targetRow);
+      if (free) {
+        targetCol = free.col;
+        targetRow = free.row;
+        // Verify the nearest free cell is actually within threshold of target
+        const worldFree = this.gridToWorld(free.col, free.row);
+        const dist = Math.hypot(worldFree.x - targetX, worldFree.z - targetZ);
+        if (dist > reachThreshold) {
+          return { path: [], reachable: false, cost: Infinity };
+        }
+      } else {
+        return { path: [], reachable: false, cost: Infinity };
+      }
+    }
+
+    const openList: GridNode[] = [];
+    const closedSet = new Set<string>();
+    const nodeMap = new Map<string, GridNode>();
+
+    const startNode: GridNode = {
+      x: startCol,
+      z: startRow,
+      walkable: true,
+      g: 0,
+      h: this.heuristic(startCol, startRow, targetCol, targetRow),
+      f: 0,
+      parent: null,
+    };
+    startNode.f = startNode.g + startNode.h;
+
+    openList.push(startNode);
+    nodeMap.set(`${startCol},${startRow}`, startNode);
+
+    const dirs = [
+      { dc: 1, dr: 0, cost: 1.0 },
+      { dc: -1, dr: 0, cost: 1.0 },
+      { dc: 0, dr: 1, cost: 1.0 },
+      { dc: 0, dr: -1, cost: 1.0 },
+      { dc: 1, dr: 1, cost: 1.414 },
+      { dc: -1, dr: 1, cost: 1.414 },
+      { dc: 1, dr: -1, cost: 1.414 },
+      { dc: -1, dr: -1, cost: 1.414 },
+    ];
+
+    let maxSteps = 2000;
+    let reachedTargetNode: GridNode | null = null;
+
+    while (openList.length > 0 && maxSteps-- > 0) {
+      let lowestIdx = 0;
+      for (let i = 1; i < openList.length; i++) {
+        if (openList[i].f < openList[lowestIdx].f) {
+          lowestIdx = i;
+        }
+      }
+      const current = openList.splice(lowestIdx, 1)[0];
+      const currentKey = `${current.x},${current.z}`;
+      closedSet.add(currentKey);
+
+      // Check if reached destination
+      if (current.x === targetCol && current.z === targetRow) {
+        reachedTargetNode = current;
+        break;
+      }
+
+      for (const dir of dirs) {
+        const nextC = current.x + dir.dc;
+        const nextR = current.z + dir.dr;
+        const key = `${nextC},${nextR}`;
+
+        if (nextC < 0 || nextC >= this.cols || nextR < 0 || nextR >= this.rows) continue;
+        if (!this.currentGrid[nextC][nextR] || closedSet.has(key)) continue;
+
+        if (dir.dc !== 0 && dir.dr !== 0) {
+          if (!this.currentGrid[current.x + dir.dc][current.z] || !this.currentGrid[current.x][current.z + dir.dr]) {
+            continue;
+          }
+        }
+
+        const tentativeG = current.g + dir.cost;
+        let neighbor = nodeMap.get(key);
+
+        if (!neighbor) {
+          const h = this.heuristic(nextC, nextR, targetCol, targetRow);
+          neighbor = {
+            x: nextC,
+            z: nextR,
+            walkable: true,
+            g: tentativeG,
+            h,
+            f: tentativeG + h,
+            parent: current,
+          };
+          nodeMap.set(key, neighbor);
+          openList.push(neighbor);
+        } else if (tentativeG < neighbor.g) {
+          neighbor.g = tentativeG;
+          neighbor.f = tentativeG + neighbor.h;
+          neighbor.parent = current;
+        }
+      }
+    }
+
+    if (!reachedTargetNode) {
+      // Exit is truly unreachable (blocked by obstacles/walls)
+      return { path: [], reachable: false, cost: Infinity };
+    }
+
+    const path = this.reconstructPath(reachedTargetNode, startX, startZ, targetX, targetZ);
+    const cost = PathfindingEngine.calculatePathLength(path);
+
+    return { path, reachable: true, cost };
+  }
+
+  // Navigate to an exit using its walkableEntryCell (inside building), then append exit portal waypoint
+  public findPathToExit(
+    startX: number,
+    startZ: number,
+    exit: ExitZone
+  ): { path: [number, number, number][]; reachable: boolean; cost: number } {
+    const targetX = exit.walkableEntryCell ? exit.walkableEntryCell[0] : exit.position[0];
+    const targetZ = exit.walkableEntryCell ? exit.walkableEntryCell[2] : exit.position[2];
+
+    const result = this.findPathWithCost(startX, startZ, targetX, targetZ);
+    if (!result.reachable || result.path.length === 0) {
+      return { path: [], reachable: false, cost: Infinity };
+    }
+
+    const fullPath: [number, number, number][] = [...result.path];
+    const last = fullPath[fullPath.length - 1];
+    const distToPortal = Math.hypot(last[0] - exit.position[0], last[2] - exit.position[2]);
+
+    if (distToPortal > 0.25) {
+      fullPath.push([exit.position[0], 0.4, exit.position[2]]);
+    }
+
+    return {
+      path: fullPath,
+      reachable: true,
+      cost: result.cost + distToPortal,
+    };
+  }
+
+  // Check if a specific cell coordinate is walkable
+  public isCellWalkable(col: number, row: number): boolean {
+    if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return false;
+    return this.currentGrid[col][row];
+  }
+
+  // Development-only reachability breakdown logger
+  public logAgentReachability(agents: Agent[], exits: ExitZone[]) {
+    console.groupCollapsed(
+      '%c[PREVIA XR Navigation Debug] Per-Agent Reachability Breakdown',
+      'color: #2563EB; font-weight: bold;'
+    );
+    agents.forEach(agent => {
+      const reachableList: Array<{ name: string; cost: number }> = [];
+      exits.forEach(ex => {
+        if (ex.isBlocked) return;
+        const res = this.findPathToExit(agent.startPos[0], agent.startPos[2], ex);
+        if (res.reachable) {
+          reachableList.push({ name: ex.label || ex.name, cost: res.cost });
+        }
+      });
+
+      if (reachableList.length > 0) {
+        reachableList.sort((a, b) => a.cost - b.cost);
+        console.log(
+          `%cAgent ${agent.name} (${agent.id})%c\n  Reachable exits:\n${reachableList.map(r => `    - ${r.name}: YES, cost ${r.cost.toFixed(1)}m`).join('\n')}\n  Selected: %c${reachableList[0].name}%c`,
+          'color: #0284C7; font-weight: bold;',
+          'color: inherit;',
+          'color: #16A34A; font-weight: bold;',
+          'color: inherit;'
+        );
+      } else {
+        console.warn(
+          `%cAgent ${agent.name} (${agent.id})%c\n  Reachable exits: %cNONE (Unreachable)%c`,
+          'color: #DC2626; font-weight: bold;',
+          'color: inherit;',
+          'color: #DC2626; font-weight: bold;',
+          'color: inherit;'
+        );
+      }
+    });
+    console.groupEnd();
+  }
+
+  // Compute actual route overlap across grid cells from active simulated agents
+  public static calculatePathOverlapHotspots(
+    paths: [number, number, number][][],
+    stepSize = 0.8
+  ): Array<{ x: number; z: number; count: number; level: 'LOW' | 'MEDIUM' | 'HIGH' }> {
+    if (!paths || paths.length === 0) return [];
+
+    const cellVisits = new Map<string, { x: number; z: number; count: number }>();
+
+    paths.forEach(path => {
+      if (!path || path.length < 2) return;
+      const visitedInPath = new Set<string>();
+
+      for (let i = 0; i < path.length - 1; i++) {
+        const p1 = path[i];
+        const p2 = path[i + 1];
+        const dx = p2[0] - p1[0];
+        const dz = p2[2] - p1[2];
+        const segLen = Math.hypot(dx, dz);
+        const steps = Math.max(1, Math.ceil(segLen / stepSize));
+
+        for (let s = 0; s <= steps; s++) {
+          const t = s / steps;
+          const wx = p1[0] + dx * t;
+          const wz = p1[2] + dz * t;
+          // Discretize to 1.0m grid bins for clustering
+          const gx = Math.round(wx);
+          const gz = Math.round(wz);
+          const key = `${gx},${gz}`;
+
+          if (!visitedInPath.has(key)) {
+            visitedInPath.add(key);
+            const existing = cellVisits.get(key) || { x: gx, z: gz, count: 0 };
+            existing.count += 1;
+            cellVisits.set(key, existing);
+          }
+        }
+      }
+    });
+
+    const totalPaths = paths.length;
+    const hotspots: Array<{ x: number; z: number; count: number; level: 'LOW' | 'MEDIUM' | 'HIGH' }> = [];
+
+    cellVisits.forEach(entry => {
+      // Filter out low usage (only 1 person passing through isn't congestion)
+      if (entry.count >= 2) {
+        let level: 'LOW' | 'MEDIUM' | 'HIGH' = 'LOW';
+        const ratio = entry.count / Math.max(1, totalPaths);
+        if (ratio >= 0.4 || entry.count >= 4) {
+          level = 'HIGH';
+        } else if (ratio >= 0.2 || entry.count >= 2) {
+          level = 'MEDIUM';
+        }
+        hotspots.push({
+          x: entry.x,
+          z: entry.z,
+          count: entry.count,
+          level,
+        });
+      }
+    });
+
+    return hotspots;
+  }
+
+  public getDimensions() {
+    return {
+      width: this.width,
+      depth: this.depth,
+      resolution: this.resolution,
+      cols: this.cols,
+      rows: this.rows,
+    };
+  }
 }
+

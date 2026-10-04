@@ -11,8 +11,8 @@ export const FrameThumbnails: React.FC<FrameThumbnailsProps> = ({ frames }) => {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center space-x-2 text-xs font-mono text-slate-300 font-semibold">
-        <Film className="w-4 h-4 text-cyan-400" />
+      <div className="flex items-center space-x-2 text-xs text-[#172033] font-semibold">
+        <Film className="w-4 h-4 text-[#2563EB]" />
         <span>REPRESENTATIVE SPATIAL FRAMES ({frames.length})</span>
       </div>
 
@@ -20,7 +20,7 @@ export const FrameThumbnails: React.FC<FrameThumbnailsProps> = ({ frames }) => {
         {frames.map((frame, idx) => (
           <div
             key={idx}
-            className="group relative rounded-xl overflow-hidden border border-slate-800 bg-slate-950 aspect-video shadow-md hover:border-cyan-500/60 transition-all"
+            className="group relative rounded-xl overflow-hidden border border-[#E2E5E9] bg-white aspect-video shadow-xs hover:shadow-elevated hover:border-[#2563EB] transition-all cursor-pointer"
           >
             <img
               src={frame.imageData}
@@ -28,11 +28,11 @@ export const FrameThumbnails: React.FC<FrameThumbnailsProps> = ({ frames }) => {
               className="w-full h-full object-cover group-hover:scale-105 transition-transform"
             />
             {frame.timestamp > 0 && (
-              <div className="absolute bottom-1 right-1 bg-black/80 px-1.5 py-0.5 rounded text-[9px] font-mono text-cyan-300">
+              <div className="absolute bottom-1 right-1 bg-white/95 text-[#172033] px-1.5 py-0.5 rounded text-[10px] font-medium shadow-xs border border-[#E2E5E9]">
                 {frame.timestamp}s
               </div>
             )}
-            <div className="absolute top-1 left-1 bg-black/70 px-1 py-0.5 rounded text-[8px] font-mono text-slate-300">
+            <div className="absolute top-1 left-1 bg-white/95 text-[#667085] px-1.5 py-0.5 rounded text-[9px] font-semibold border border-[#E2E5E9]">
               #{idx + 1}
             </div>
           </div>

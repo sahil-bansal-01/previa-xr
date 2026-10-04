@@ -24,13 +24,15 @@ const AppLayout: React.FC = () => {
     location.pathname === '/simulator' || location.pathname.includes('/review');
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#07090e] text-slate-100 font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
+    <div className="min-h-screen flex flex-col bg-[#F7F8FA] text-[#172033] font-sans selection:bg-blue-500/20 selection:text-blue-700">
       <Navbar />
       <main className="flex-1 flex flex-col">
         <Routes>
           <Route path="/" element={<LandingPage />} />
+          <Route path="/upload" element={<UploadSpacePage />} />
           <Route path="/upload-space" element={<UploadSpacePage />} />
           <Route path="/environment/:id/review" element={<EnvironmentReviewPage />} />
+          <Route path="/environment-review/:id" element={<EnvironmentReviewPage />} />
           <Route path="/simulator" element={<SimulatorPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/scenarios" element={<ScenariosPage />} />

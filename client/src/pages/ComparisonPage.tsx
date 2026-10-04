@@ -114,40 +114,40 @@ export const ComparisonPage: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-[#07090e] p-6 md:p-10 max-w-7xl mx-auto flex flex-col space-y-8">
+    <div className="min-h-screen bg-[#F7F8FA] p-6 md:p-10 max-w-7xl mx-auto flex flex-col space-y-8 text-[#172033]">
       {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#E2E5E9] pb-6">
         <div>
-          <span className="text-xs font-mono uppercase tracking-widest text-cyan-400 font-semibold">
+          <span className="text-xs font-sans uppercase tracking-widest text-[#2563EB] font-bold">
             What-If Multi-Scenario Analysis
           </span>
-          <h1 className="text-2xl md:text-3xl font-extrabold font-mono text-slate-100 mt-1">
+          <h1 className="text-2xl md:text-3xl font-extrabold font-sans text-[#172033] mt-1">
             Compare Decision Futures
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-[#667085] mt-1 font-sans">
             Evaluate consequences side-by-side: see how changing an obstacle location shifts crowd bottlenecks and delays.
           </p>
         </div>
 
         <Link
           to="/simulator"
-          className="px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-mono font-bold text-xs uppercase tracking-wider flex items-center space-x-2 transition-all shadow-md shadow-cyan-500/20"
+          className="px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-sans font-bold text-xs uppercase tracking-wider flex items-center space-x-2 transition-all shadow-md hover:shadow-lg"
         >
           <span>OPEN 3D SIMULATOR</span>
-          <ArrowRight className="w-4 h-4 text-slate-950" />
+          <ArrowRight className="w-4 h-4 text-white" />
         </Link>
       </div>
 
       {/* Selectors for Scenario A and Scenario B */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Scenario A Selector */}
-        <div className="bg-slate-900/70 p-5 rounded-2xl border border-cyan-500/40 relative space-y-3">
+        <div className="bg-white p-5 rounded-2xl border border-[#E2E5E9] shadow-sm relative space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-bold text-cyan-300 uppercase tracking-wider flex items-center space-x-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+            <span className="text-xs font-sans font-bold text-[#2563EB] uppercase tracking-wider flex items-center space-x-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#2563EB]"></span>
               <span>DECISION FUTURE A</span>
             </span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800">
+            <span className="text-[10px] font-sans font-semibold px-2 py-0.5 rounded-full bg-[#FEF3C7] text-[#D97706] border border-[#FDE68A]">
               {scenA.riskLevel} Risk
             </span>
           </div>
@@ -155,7 +155,7 @@ export const ComparisonPage: React.FC = () => {
           <select
             value={selectedPresetA}
             onChange={e => setSelectedPresetA(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 text-sm font-mono text-slate-100 rounded-lg p-2.5 focus:outline-none"
+            className="w-full bg-white border border-[#E2E5E9] focus:border-[#2563EB] text-sm font-sans font-medium text-[#172033] rounded-xl p-2.5 focus:outline-none shadow-xs"
           >
             <option value="exit-a">Hypothetical Action A: Exit A Blocked</option>
             <option value="corridor">Hypothetical Action B: Main Corridor Blocked</option>
@@ -163,19 +163,19 @@ export const ComparisonPage: React.FC = () => {
             <option value="baseline">Baseline: All Exits Clear</option>
           </select>
 
-          <p className="text-xs text-slate-400 font-sans">
+          <p className="text-xs text-[#667085] font-sans">
             {scenA.action}
           </p>
         </div>
 
         {/* Scenario B Selector */}
-        <div className="bg-slate-900/70 p-5 rounded-2xl border border-violet-500/40 relative space-y-3">
+        <div className="bg-white p-5 rounded-2xl border border-[#E2E5E9] shadow-sm relative space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-bold text-violet-300 uppercase tracking-wider flex items-center space-x-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-violet-400"></span>
+            <span className="text-xs font-sans font-bold text-[#14B8A6] uppercase tracking-wider flex items-center space-x-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#14B8A6]"></span>
               <span>DECISION FUTURE B</span>
             </span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-violet-950 text-violet-300 border border-violet-800">
+            <span className="text-[10px] font-sans font-semibold px-2 py-0.5 rounded-full bg-[#FEF2F2] text-[#DC2626] border border-[#FCA5A5]">
               {scenB.riskLevel} Risk
             </span>
           </div>
@@ -183,7 +183,7 @@ export const ComparisonPage: React.FC = () => {
           <select
             value={selectedPresetB}
             onChange={e => setSelectedPresetB(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 text-sm font-mono text-slate-100 rounded-lg p-2.5 focus:outline-none"
+            className="w-full bg-white border border-[#E2E5E9] focus:border-[#14B8A6] text-sm font-sans font-medium text-[#172033] rounded-xl p-2.5 focus:outline-none shadow-xs"
           >
             <option value="corridor">Hypothetical Action B: Main Corridor Blocked</option>
             <option value="exit-a">Hypothetical Action A: Exit A Blocked</option>
@@ -191,91 +191,91 @@ export const ComparisonPage: React.FC = () => {
             <option value="baseline">Baseline: All Exits Clear</option>
           </select>
 
-          <p className="text-xs text-slate-400 font-sans">
+          <p className="text-xs text-[#667085] font-sans">
             {scenB.action}
           </p>
         </div>
       </div>
 
       {/* Side-by-Side Key Metrics Comparison Table */}
-      <div className="bg-slate-900/60 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-          <h3 className="text-sm font-bold font-mono uppercase text-slate-200">
+      <div className="bg-white rounded-2xl border border-[#E2E5E9] overflow-hidden shadow-sm">
+        <div className="p-4 border-b border-[#E2E5E9] flex items-center justify-between">
+          <h3 className="text-sm font-bold font-sans uppercase text-[#172033]">
             Side-By-Side Consequence Telemetry
           </h3>
-          <span className="text-[10px] font-mono text-cyan-400 uppercase font-semibold">
+          <span className="text-[10px] font-sans text-[#2563EB] uppercase font-bold">
             * SIMULATED ESTIMATES
           </span>
         </div>
 
-        <div className="divide-y divide-slate-800/80 font-mono text-xs">
-          <div className="grid grid-cols-3 p-3.5 bg-slate-950/40 text-slate-400 text-[10px] uppercase tracking-wider">
+        <div className="divide-y divide-[#E2E5E9] font-sans text-xs">
+          <div className="grid grid-cols-3 p-3.5 bg-[#F7F8FA] text-[#667085] text-[11px] uppercase tracking-wider font-bold">
             <span>Simulation Metric</span>
-            <span className="text-cyan-400">Decision A ({scenA.title.split(':')[1] || scenA.title})</span>
-            <span className="text-violet-400">Decision B ({scenB.title.split(':')[1] || scenB.title})</span>
+            <span className="text-[#2563EB]">Decision A ({scenA.title.split(':')[1] || scenA.title})</span>
+            <span className="text-[#14B8A6]">Decision B ({scenB.title.split(':')[1] || scenB.title})</span>
           </div>
 
           <div className="grid grid-cols-3 p-3.5 items-center">
-            <span className="text-slate-300 font-sans flex items-center space-x-1.5">
-              <Users className="w-4 h-4 text-cyan-400" />
+            <span className="text-[#667085] font-medium flex items-center space-x-1.5">
+              <Users className="w-4 h-4 text-[#2563EB]" />
               <span>Affected Occupants</span>
             </span>
-            <span className="text-cyan-300 font-bold text-sm">
+            <span className="text-[#2563EB] font-bold text-sm">
               {scenA.affectedPeople} of 10 people
             </span>
-            <span className="text-violet-300 font-bold text-sm">
+            <span className="text-[#14B8A6] font-bold text-sm">
               {scenB.affectedPeople} of 10 people
             </span>
           </div>
 
           <div className="grid grid-cols-3 p-3.5 items-center">
-            <span className="text-slate-300 font-sans flex items-center space-x-1.5">
-              <Clock className="w-4 h-4 text-amber-400" />
+            <span className="text-[#667085] font-medium flex items-center space-x-1.5">
+              <Clock className="w-4 h-4 text-[#F59E0B]" />
               <span>Estimated Evacuation Delay</span>
             </span>
-            <span className="text-amber-300 font-bold text-sm">
+            <span className="text-[#DC2626] font-bold text-sm">
               +{scenA.delay} seconds
             </span>
-            <span className="text-amber-300 font-bold text-sm">
+            <span className="text-[#DC2626] font-bold text-sm">
               +{scenB.delay} seconds
             </span>
           </div>
 
           <div className="grid grid-cols-3 p-3.5 items-center">
-            <span className="text-slate-300 font-sans flex items-center space-x-1.5">
-              <Activity className="w-4 h-4 text-rose-400" />
+            <span className="text-[#667085] font-medium flex items-center space-x-1.5">
+              <Activity className="w-4 h-4 text-[#DC2626]" />
               <span>Corridor Crowd Density</span>
             </span>
-            <span className="text-slate-200">
+            <span className="text-[#172033] font-semibold">
               {scenA.congestion}% ({scenA.riskLevel})
             </span>
-            <span className="text-slate-200">
+            <span className="text-[#172033] font-semibold">
               {scenB.congestion}% ({scenB.riskLevel})
             </span>
           </div>
 
           <div className="grid grid-cols-3 p-3.5 items-center">
-            <span className="text-slate-300 font-sans flex items-center space-x-1.5">
-              <AlertTriangle className="w-4 h-4 text-amber-400" />
+            <span className="text-[#667085] font-medium flex items-center space-x-1.5">
+              <AlertTriangle className="w-4 h-4 text-[#F59E0B]" />
               <span>Primary Bottleneck Chokepoint</span>
             </span>
-            <span className="text-slate-300 font-sans text-[11px]">
+            <span className="text-[#172033] text-xs">
               {scenA.bottleneck}
             </span>
-            <span className="text-slate-300 font-sans text-[11px]">
+            <span className="text-[#172033] text-xs">
               {scenB.bottleneck}
             </span>
           </div>
 
           <div className="grid grid-cols-3 p-3.5 items-center">
-            <span className="text-slate-300 font-sans flex items-center space-x-1.5">
-              <Navigation className="w-4 h-4 text-emerald-400" />
+            <span className="text-[#667085] font-medium flex items-center space-x-1.5">
+              <Navigation className="w-4 h-4 text-[#16A34A]" />
               <span>Recommended Alternative Exit</span>
             </span>
-            <span className="text-emerald-400 font-bold">
+            <span className="text-[#16A34A] font-bold">
               {scenA.recommendedExit}
             </span>
-            <span className="text-emerald-400 font-bold">
+            <span className="text-[#16A34A] font-bold">
               {scenB.recommendedExit}
             </span>
           </div>
@@ -285,51 +285,51 @@ export const ComparisonPage: React.FC = () => {
       {/* Visual Analytics with Recharts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Bar Chart Comparison */}
-        <div className="bg-slate-900/60 p-5 rounded-2xl border border-slate-800 space-y-3">
+        <div className="bg-white p-6 rounded-2xl border border-[#E2E5E9] shadow-sm space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold font-mono text-slate-100 uppercase">
+            <h3 className="text-sm font-bold font-sans text-[#172033] uppercase">
               Comparative Impact Metrics
             </h3>
-            <span className="text-[10px] font-mono text-slate-500">Bar Telemetry</span>
+            <span className="text-[10px] font-sans text-[#667085]">Bar Telemetry</span>
           </div>
 
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={barData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <XAxis dataKey="metric" stroke="#64748b" tick={{ fontSize: 11, fill: '#94a3b8' }} />
-                <YAxis stroke="#64748b" tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                <XAxis dataKey="metric" stroke="#CBD5E1" tick={{ fontSize: 11, fill: '#64748B' }} />
+                <YAxis stroke="#CBD5E1" tick={{ fontSize: 10, fill: '#64748B' }} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px' }}
+                  contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E2E5E9', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', color: '#172033' }}
                   itemStyle={{ fontSize: '12px' }}
                 />
-                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                <Bar dataKey="Decision A" fill="#38bdf8" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Decision B" fill="#818cf8" radius={[4, 4, 0, 0]} />
+                <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                <Bar dataKey="Decision A" fill="#2563EB" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Decision B" fill="#14B8A6" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* Radar Chart Multi-Attribute Profile */}
-        <div className="bg-slate-900/60 p-5 rounded-2xl border border-slate-800 space-y-3">
+        <div className="bg-white p-6 rounded-2xl border border-[#E2E5E9] shadow-sm space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold font-mono text-slate-100 uppercase">
+            <h3 className="text-sm font-bold font-sans text-[#172033] uppercase">
               Spatial Risk Profile (Radar)
             </h3>
-            <span className="text-[10px] font-mono text-slate-500">Multi-Vector</span>
+            <span className="text-[10px] font-sans text-[#667085]">Multi-Vector</span>
           </div>
 
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
-                <PolarGrid stroke="#1e293b" />
-                <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: '#94a3b8' }} />
-                <PolarRadiusAxis stroke="#334155" tick={{ fontSize: 8 }} />
-                <Radar name="Decision A" dataKey="A" stroke="#00f0ff" fill="#00f0ff" fillOpacity={0.25} />
-                <Radar name="Decision B" dataKey="B" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.25} />
-                <Legend wrapperStyle={{ fontSize: '11px' }} />
+                <PolarGrid stroke="#E2E5E9" />
+                <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: '#64748B' }} />
+                <PolarRadiusAxis stroke="#CBD5E1" tick={{ fontSize: 8 }} />
+                <Radar name="Decision A" dataKey="A" stroke="#2563EB" fill="#2563EB" fillOpacity={0.2} />
+                <Radar name="Decision B" dataKey="B" stroke="#14B8A6" fill="#14B8A6" fillOpacity={0.2} />
+                <Legend wrapperStyle={{ fontSize: '12px' }} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px' }}
+                  contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E2E5E9', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', color: '#172033' }}
                 />
               </RadarChart>
             </ResponsiveContainer>
@@ -338,14 +338,14 @@ export const ComparisonPage: React.FC = () => {
       </div>
 
       {/* Decision Guidance Synthesis Banner */}
-      <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-cyan-950/40 to-slate-900 border border-cyan-500/30 flex items-start space-x-4">
-        <CheckCircle2 className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
+      <div className="p-5 rounded-2xl bg-[#EFF6FF] border border-[#BFDBFE] flex items-start space-x-4 shadow-xs">
+        <CheckCircle2 className="w-5 h-5 text-[#2563EB] shrink-0 mt-0.5" />
         <div className="space-y-1">
-          <h4 className="text-sm font-bold font-mono text-slate-100 uppercase">
+          <h4 className="text-sm font-bold font-sans text-[#172033] uppercase">
             Simulation Recommendation Summary
           </h4>
-          <p className="text-xs text-slate-300 leading-relaxed font-sans">
-            Blocking <strong className="text-cyan-300">{scenA.title.split(':')[1]}</strong> results in a {scenA.delay}s delay with {scenA.affectedPeople} rerouted occupants, whereas <strong className="text-violet-300">{scenB.title.split(':')[1]}</strong> causes {scenB.delay}s delay and higher chokepoint congestion. If an emergency corridor must be closed for maintenance, <strong className="text-emerald-400">Exit A blockage</strong> preserves overall facility evacuation velocity more efficiently.
+          <p className="text-xs text-[#667085] leading-relaxed font-sans">
+            Blocking <strong className="text-[#2563EB]">{scenA.title.split(':')[1]}</strong> results in a {scenA.delay}s delay with {scenA.affectedPeople} rerouted occupants, whereas <strong className="text-[#14B8A6]">{scenB.title.split(':')[1]}</strong> causes {scenB.delay}s delay and higher chokepoint congestion. If an emergency corridor must be closed for maintenance, <strong className="text-[#16A34A]">Exit A blockage</strong> preserves overall facility evacuation velocity more efficiently.
           </p>
         </div>
       </div>

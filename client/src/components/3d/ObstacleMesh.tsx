@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Html } from '@react-three/drei';
+import { Html, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { ObstacleState } from '../../simulation/types/simulationTypes';
 
@@ -53,9 +53,9 @@ export const ObstacleMesh: React.FC<ObstacleMeshProps> = ({
       {/* Dynamic Strobe Beacon Light */}
       <pointLight
         ref={strobeRef}
-        color={isBlockingExitA ? '#f59e0b' : '#38bdf8'}
+        color={isBlockingExitA ? '#F59E0B' : '#2563EB'}
         distance={4}
-        intensity={2}
+        intensity={1.2}
         position={[0, 1.2, 0]}
       />
 
@@ -63,55 +63,69 @@ export const ObstacleMesh: React.FC<ObstacleMeshProps> = ({
       <mesh castShadow position={[0, 0.15, 0]}>
         <boxGeometry args={[1.5, 0.2, 1.1]} />
         <meshStandardMaterial
-          color="#334155"
-          metalness={0.7}
-          roughness={0.3}
+          color="#64748B"
+          metalness={0.5}
+          roughness={0.4}
         />
       </mesh>
 
       {/* 4 Wheels */}
       <mesh position={[-0.6, 0.06, -0.45]} rotation={[0, 0, Math.PI / 2]}>
         <cylinderGeometry args={[0.07, 0.07, 0.08, 12]} />
-        <meshStandardMaterial color="#0f172a" />
+        <meshStandardMaterial color="#334155" />
       </mesh>
       <mesh position={[0.6, 0.06, -0.45]} rotation={[0, 0, Math.PI / 2]}>
         <cylinderGeometry args={[0.07, 0.07, 0.08, 12]} />
-        <meshStandardMaterial color="#0f172a" />
+        <meshStandardMaterial color="#334155" />
       </mesh>
       <mesh position={[-0.6, 0.06, 0.45]} rotation={[0, 0, Math.PI / 2]}>
         <cylinderGeometry args={[0.07, 0.07, 0.08, 12]} />
-        <meshStandardMaterial color="#0f172a" />
+        <meshStandardMaterial color="#334155" />
       </mesh>
       <mesh position={[0.6, 0.06, 0.45]} rotation={[0, 0, Math.PI / 2]}>
         <cylinderGeometry args={[0.07, 0.07, 0.08, 12]} />
-        <meshStandardMaterial color="#0f172a" />
+        <meshStandardMaterial color="#334155" />
       </mesh>
 
       {/* Vertical Support Struts */}
       <mesh position={[-0.65, 0.65, -0.45]}>
         <cylinderGeometry args={[0.03, 0.03, 0.8, 8]} />
-        <meshStandardMaterial color="#64748b" metalness={0.8} />
+        <meshStandardMaterial color="#94A3B8" metalness={0.7} />
       </mesh>
       <mesh position={[0.65, 0.65, -0.45]}>
         <cylinderGeometry args={[0.03, 0.03, 0.8, 8]} />
-        <meshStandardMaterial color="#64748b" metalness={0.8} />
+        <meshStandardMaterial color="#94A3B8" metalness={0.7} />
       </mesh>
       <mesh position={[-0.65, 0.65, 0.45]}>
         <cylinderGeometry args={[0.03, 0.03, 0.8, 8]} />
-        <meshStandardMaterial color="#64748b" metalness={0.8} />
+        <meshStandardMaterial color="#94A3B8" metalness={0.7} />
       </mesh>
       <mesh position={[0.65, 0.65, 0.45]}>
         <cylinderGeometry args={[0.03, 0.03, 0.8, 8]} />
-        <meshStandardMaterial color="#64748b" metalness={0.8} />
+        <meshStandardMaterial color="#94A3B8" metalness={0.7} />
       </mesh>
 
-      {/* Heavy Cargo / Debris Box on Cart */}
+      {/* Tubular Push Handle on Cart End (Section 40) */}
+      <mesh position={[-0.72, 0.8, -0.42]}>
+        <cylinderGeometry args={[0.022, 0.022, 0.7, 8]} />
+        <meshStandardMaterial color="#475569" metalness={0.6} roughness={0.3} />
+      </mesh>
+      <mesh position={[-0.72, 0.8, 0.42]}>
+        <cylinderGeometry args={[0.022, 0.022, 0.7, 8]} />
+        <meshStandardMaterial color="#475569" metalness={0.6} roughness={0.3} />
+      </mesh>
+      <mesh position={[-0.72, 1.15, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.024, 0.024, 0.86, 8]} />
+        <meshStandardMaterial color="#334155" metalness={0.7} roughness={0.3} />
+      </mesh>
+
+      {/* Cargo Box on Cart */}
       <mesh castShadow position={[0, 0.6, 0]}>
         <boxGeometry args={[1.3, 0.7, 0.9]} />
         <meshStandardMaterial
-          color={isBlockingExitA ? '#b45309' : '#1e293b'}
-          roughness={0.4}
-          metalness={0.4}
+          color={isBlockingExitA ? '#F59E0B' : '#E2E8F0'}
+          roughness={0.5}
+          metalness={0.2}
         />
       </mesh>
 
@@ -119,17 +133,28 @@ export const ObstacleMesh: React.FC<ObstacleMeshProps> = ({
       <mesh position={[0, 0.6, 0.46]}>
         <planeGeometry args={[1.2, 0.3]} />
         <meshBasicMaterial
-          color={isBlockingExitA ? '#ef4444' : '#f59e0b'}
+          color={isBlockingExitA ? '#DC2626' : '#F59E0B'}
         />
       </mesh>
+
+      {/* 3D Physical Obstacle Text for VR visibility */}
+      <Text
+        position={[0, 0.6, 0.465]}
+        fontSize={0.075}
+        color="#FFFFFF"
+        anchorX="center"
+        anchorY="middle"
+      >
+        {isBlockingExitA ? 'HAZARD OBSTACLE' : 'MOVABLE CART'}
+      </Text>
 
       {/* Top Warning Strobe Dome */}
       <mesh position={[0, 1.05, 0]}>
         <sphereGeometry args={[0.12, 16, 16]} />
         <meshStandardMaterial
-          color={isBlockingExitA ? '#f59e0b' : '#38bdf8'}
-          emissive={isBlockingExitA ? '#f59e0b' : '#38bdf8'}
-          emissiveIntensity={isBlockingExitA ? 2 : 1}
+          color={isBlockingExitA ? '#F59E0B' : '#2563EB'}
+          emissive={isBlockingExitA ? '#F59E0B' : '#2563EB'}
+          emissiveIntensity={isBlockingExitA ? 1.2 : 0.6}
         />
       </mesh>
 
@@ -137,28 +162,23 @@ export const ObstacleMesh: React.FC<ObstacleMeshProps> = ({
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.38, 0]}>
         <ringGeometry args={[1.0, 1.15, 32]} />
         <meshBasicMaterial
-          color={hovered ? '#00f0ff' : isBlockingExitA ? '#f59e0b' : '#334155'}
+          color={hovered ? '#2563EB' : isBlockingExitA ? '#F59E0B' : '#CBD5E1'}
           transparent
-          opacity={hovered ? 0.8 : 0.4}
+          opacity={hovered ? 0.9 : 0.4}
         />
       </mesh>
 
-      {/* Floating 3D Interaction Hint */}
-      <Html position={[0, 1.6, 0]} center distanceFactor={14}>
+      {/* Clean Architectural Obstacle Label (Section 40, 45) */}
+      <Html position={[0, 1.55, 0]} center distanceFactor={14}>
         <div className="pointer-events-none select-none flex flex-col items-center">
           <div
-            className={`px-2.5 py-1 rounded text-[11px] font-mono font-bold tracking-wide uppercase border shadow-xl transition-all duration-300 ${
+            className={`px-3 py-1 rounded-lg text-xs font-sans font-bold tracking-wide uppercase border shadow-md transition-all duration-300 ${
               isBlockingExitA
-                ? 'bg-amber-950/90 text-amber-200 border-amber-500/80 shadow-amber-500/30'
-                : 'bg-slate-900/90 text-cyan-300 border-cyan-500/60 shadow-cyan-500/20'
+                ? 'bg-[#FEF2F2] text-[#DC2626] border-[#FCA5A5]'
+                : 'bg-white/95 text-[#172033] border-[#E2E5E9]'
             }`}
           >
-            {isBlockingExitA ? '⚠️ OBSTACLE BLOCKING EXIT A' : '📦 MOVABLE OBSTACLE'}
-          </div>
-          <div className="text-[9px] font-sans font-medium text-slate-300 bg-slate-900/80 px-2 py-0.5 rounded-full mt-1 border border-white/10 backdrop-blur-sm whitespace-nowrap">
-            {isBlockingExitA
-              ? 'Click to remove obstacle'
-              : 'Click to place at Exit A'}
+            {isBlockingExitA ? '⚠️ MOVABLE OBSTACLE (ACTIVE)' : 'MOVABLE OBSTACLE'}
           </div>
         </div>
       </Html>

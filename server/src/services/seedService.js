@@ -5,86 +5,112 @@ import bcrypt from 'bcryptjs';
 
 export const defaultCampusScenario = {
   title: 'Campus Academic Complex — North Wing',
-  description: 'Multi-room academic wing with 10 occupants and 3 emergency evacuation exits. Demonstrates route recalculation and corridor congestion when Exit A is obstructed.',
+  description: 'Multi-room academic wing with 10 occupants and 3 emergency evacuation exits. Demonstrates route recalculation and corridor congestion when Main Exit is obstructed.',
   environmentType: 'Indoor Emergency / Campus Facility',
   environmentState: {
     gridWidth: 24,
     gridHeight: 16,
     cellSize: 1,
     rooms: [
-      { id: 'room-1', name: 'Lecture Hall 101', x: -8, z: -4, width: 6, depth: 6, color: '#1e293b' },
-      { id: 'room-2', name: 'XR Research Lab', x: 2, z: -4, width: 6, depth: 6, color: '#1e293b' },
-      { id: 'room-3', name: 'Faculty Offices', x: -8, z: 3, width: 6, depth: 5, color: '#1e293b' },
-      { id: 'room-4', name: 'Server / Robotics Lab', x: 2, z: 3, width: 6, depth: 5, color: '#1e293b' },
+      { id: 'room-1', name: 'Lecture Hall (Room A)', x: -5.0, z: -4.3, width: 9.6, depth: 5.0, color: '#FFFFFF' },
+      { id: 'room-2', name: 'Research Lab (Room B)', x: 5.0, z: -4.3, width: 9.6, depth: 5.0, color: '#FFFFFF' },
+      { id: 'room-3', name: 'Faculty Commons (Room C)', x: -5.75, z: 4.3, width: 8.1, depth: 5.0, color: '#FFFFFF' },
+      { id: 'room-4', name: 'Seminar Hall (Room D)', x: 5.75, z: 4.3, width: 8.1, depth: 5.0, color: '#FFFFFF' },
     ],
-    // Walls as bounding rectangles [x1, z1, x2, z2] or discrete wall segments
     walls: [
-      // Outer perimeter
-      { x: 0, z: -8, width: 24, depth: 0.4, label: 'North Perimeter Wall' },
-      { x: 0, z: 8, width: 24, depth: 0.4, label: 'South Perimeter Wall' },
-      { x: -12, z: 0, width: 0.4, depth: 16, label: 'West Perimeter Wall' },
-      { x: 12, z: 0, width: 0.4, depth: 16, label: 'East Perimeter Wall' },
-      // Interior partition walls with doorways
-      { x: -5, z: -4, width: 0.3, depth: 4.5, label: 'Lecture Hall East Wall' },
-      { x: -8, z: -1, width: 4.5, depth: 0.3, label: 'Lecture Hall South Wall' },
-      { x: 5, z: -4, width: 0.3, depth: 4.5, label: 'XR Lab East Wall' },
-      { x: 2, z: -1, width: 4.5, depth: 0.3, label: 'XR Lab South Wall' },
-      { x: -5, z: 4, width: 0.3, depth: 5, label: 'Faculty Offices East Wall' },
-      { x: 5, z: 4, width: 0.3, depth: 5, label: 'Robotics Lab East Wall' },
+      // Outer perimeter walls with true doorway gaps for exits
+      { x: 0, z: -7.0, width: 20.4, depth: 0.4, label: 'North Perimeter Wall' },
+      { x: -5.85, z: 7.0, width: 8.7, depth: 0.4, label: 'South Perimeter West' },
+      { x: 5.85, z: 7.0, width: 8.7, depth: 0.4, label: 'South Perimeter East' },
+      // West perimeter with gap for West Exit [-1.5 to 1.5]
+      { x: -10.0, z: -4.25, width: 0.4, depth: 5.5, label: 'West Perimeter North' },
+      { x: -10.0, z: 4.25, width: 0.4, depth: 5.5, label: 'West Perimeter South' },
+      // East perimeter with gap for East Exit [-1.5 to 1.5]
+      { x: 10.0, z: -4.25, width: 0.4, depth: 5.5, label: 'East Perimeter North' },
+      { x: 10.0, z: 4.25, width: 0.4, depth: 5.5, label: 'East Perimeter South' },
+
+      // North dividing partition between Room A & Room B
+      { x: 0, z: -4.3, width: 0.4, depth: 5.4, label: 'North Dividing Wall' },
+
+      // Room A (North-West) South Wall with 2.4m door opening [-6.0 to -3.6]
+      { x: -8.0, z: -1.6, width: 4.0, depth: 0.4, label: 'Room A South Wall West' },
+      { x: -1.8, z: -1.6, width: 3.6, depth: 0.4, label: 'Room A South Wall East' },
+
+      // Room B (North-East) South Wall with 2.4m door opening [3.6 to 6.0]
+      { x: 1.8, z: -1.6, width: 3.6, depth: 0.4, label: 'Room B South Wall West' },
+      { x: 8.0, z: -1.6, width: 4.0, depth: 0.4, label: 'Room B South Wall East' },
+
+      // South Corridor dividing walls
+      { x: -1.5, z: 4.3, width: 0.4, depth: 5.4, label: 'South Corridor West Wall' },
+      { x: 1.5, z: 4.3, width: 0.4, depth: 5.4, label: 'South Corridor East Wall' },
+
+      // Room C (South-West) North Wall with 2.4m door opening [-6.0 to -3.6]
+      { x: -8.0, z: 1.6, width: 4.0, depth: 0.4, label: 'Room C North Wall West' },
+      { x: -2.55, z: 1.6, width: 2.1, depth: 0.4, label: 'Room C North Wall East' },
+
+      // Room D (South-East) North Wall with 2.4m door opening [3.6 to 6.0]
+      { x: 2.55, z: 1.6, width: 2.1, depth: 0.4, label: 'Room D North Wall West' },
+      { x: 8.0, z: 1.6, width: 4.0, depth: 0.4, label: 'Room D North Wall East' },
     ],
     exits: [
       {
-        id: 'exit-a',
-        name: 'Emergency Exit A',
-        label: 'EXIT A (North Wing)',
-        position: [11.2, 0, -5.5],
-        color: '#10b981',
+        id: 'exit-main',
+        name: 'East Exit',
+        label: 'EAST EXIT',
+        position: [10.0, 0, 0],
+        walkableEntryCell: [8.8, 0, 0],
+        color: '#16a34a',
         isPrimary: true,
-        width: 1.6,
+        width: 2.4,
         capacity: 'High Flow',
+        type: 'emergency',
       },
       {
-        id: 'exit-b',
-        name: 'Emergency Exit B',
-        label: 'EXIT B (West Concourse)',
-        position: [-11.2, 0, 5.5],
-        color: '#38bdf8',
+        id: 'exit-secondary',
+        name: 'West Exit',
+        label: 'WEST EXIT',
+        position: [-10.0, 0, 0],
+        walkableEntryCell: [-8.8, 0, 0],
+        color: '#2563eb',
         isPrimary: false,
-        width: 1.6,
+        width: 2.4,
         capacity: 'Moderate Flow',
+        type: 'emergency',
       },
       {
-        id: 'exit-c',
-        name: 'Emergency Exit C',
-        label: 'EXIT C (South Corridor)',
-        position: [0, 0, 7.5],
-        color: '#a855f7',
+        id: 'exit-south',
+        name: 'South Exit',
+        label: 'SOUTH EXIT',
+        position: [0, 0, 7.0],
+        walkableEntryCell: [0, 0, 5.8],
+        color: '#0d9488',
         isPrimary: false,
-        width: 1.4,
+        width: 2.4,
         capacity: 'Secondary Exit',
+        type: 'normal',
       },
     ],
     initialObstacles: [
       {
         id: 'obstacle-cart-1',
         name: 'Heavy Industrial Trolley / Partition Debris',
-        position: [8.5, 0.4, -5.5],
+        position: [0, 0.4, -6.0],
         scale: [1.6, 1.2, 1.2],
-        isBlockingExitA: true,
+        isBlockingExitA: false,
         type: 'movable',
       }
     ],
     initialAgents: [
-      { id: 'agent-1', name: 'Researcher Alpha', startPos: [-8, 0.5, -5], currentExit: 'exit-a', speed: 1.2, status: 'Moving' },
-      { id: 'agent-2', name: 'Student Beta', startPos: [-9, 0.5, -3], currentExit: 'exit-a', speed: 1.1, status: 'Moving' },
-      { id: 'agent-3', name: 'Lab Tech Gamma', startPos: [3, 0.5, -4], currentExit: 'exit-a', speed: 1.3, status: 'Moving' },
-      { id: 'agent-4', name: 'Staff Delta', startPos: [4, 0.5, -6], currentExit: 'exit-a', speed: 1.0, status: 'Moving' },
-      { id: 'agent-5', name: 'Student Epsilon', startPos: [1, 0.5, -2], currentExit: 'exit-a', speed: 1.15, status: 'Moving' },
-      { id: 'agent-6', name: 'Professor Zeta', startPos: [7, 0.5, -4], currentExit: 'exit-a', speed: 0.95, status: 'Moving' },
-      { id: 'agent-7', name: 'Visitor Eta', startPos: [-8, 0.5, 4], currentExit: 'exit-b', speed: 1.1, status: 'Moving' },
-      { id: 'agent-8', name: 'Staff Theta', startPos: [-9, 0.5, 2], currentExit: 'exit-b', speed: 1.25, status: 'Moving' },
-      { id: 'agent-9', name: 'Student Iota', startPos: [3, 0.5, 4], currentExit: 'exit-c', speed: 1.05, status: 'Moving' },
-      { id: 'agent-10', name: 'Research Fellow Kappa', startPos: [-2, 0.5, 1], currentExit: 'exit-b', speed: 1.15, status: 'Moving' },
+      { id: 'agent-1', name: 'Researcher Alpha (P1)', startPos: [-6.0, 0.4, -4.5], currentExit: 'exit-secondary', speed: 1.15, status: 'Moving' },
+      { id: 'agent-2', name: 'Student Beta (P2)', startPos: [-4.8, 0.4, -3.0], currentExit: 'exit-secondary', speed: 1.05, status: 'Moving' },
+      { id: 'agent-3', name: 'Lab Tech Gamma (P3)', startPos: [6.0, 0.4, -4.5], currentExit: 'exit-main', speed: 1.25, status: 'Moving' },
+      { id: 'agent-4', name: 'Staff Delta (P4)', startPos: [4.8, 0.4, -3.0], currentExit: 'exit-main', speed: 1.0, status: 'Moving' },
+      { id: 'agent-5', name: 'Professor Zeta (P5)', startPos: [7.5, 0.4, -4.0], currentExit: 'exit-main', speed: 0.95, status: 'Moving' },
+      { id: 'agent-6', name: 'Student Epsilon (P6)', startPos: [6.5, 0.4, 0.0], currentExit: 'exit-main', speed: 1.1, status: 'Moving' },
+      { id: 'agent-7', name: 'Visitor Eta (P7)', startPos: [-6.0, 0.4, 4.5], currentExit: 'exit-secondary', speed: 1.1, status: 'Moving' },
+      { id: 'agent-8', name: 'Staff Theta (P8)', startPos: [-4.8, 0.4, 3.0], currentExit: 'exit-secondary', speed: 1.2, status: 'Moving' },
+      { id: 'agent-9', name: 'Student Iota (P9)', startPos: [6.0, 0.4, 4.5], currentExit: 'exit-main', speed: 1.05, status: 'Moving' },
+      { id: 'agent-10', name: 'Research Fellow Kappa (P10)', startPos: [0.0, 0.4, 3.5], currentExit: 'exit-south', speed: 1.15, status: 'Moving' },
     ],
   },
   actions: [

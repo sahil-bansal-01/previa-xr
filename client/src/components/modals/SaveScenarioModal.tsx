@@ -67,18 +67,18 @@ export const SaveScenarioModal: React.FC<SaveScenarioModalProps> = ({ isOpen, on
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between p-4 border-b border-slate-800">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#172033]/60 backdrop-blur-sm p-4">
+      <div className="bg-white border border-[#E2E5E9] rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-between p-4 border-b border-[#E2E5E9]">
           <div className="flex items-center space-x-2">
-            <Save className="w-4 h-4 text-cyan-400" />
-            <h3 className="text-sm font-bold text-slate-100 font-mono uppercase tracking-wide">
+            <Save className="w-4 h-4 text-[#2563EB]" />
+            <h3 className="text-sm font-bold text-[#172033] font-sans uppercase tracking-wide">
               Save Spatial Scenario
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-200 p-1 rounded-lg hover:bg-slate-800 transition-colors"
+            className="text-[#667085] hover:text-[#172033] p-1.5 rounded-lg hover:bg-[#F1F3F5] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -86,7 +86,7 @@ export const SaveScenarioModal: React.FC<SaveScenarioModalProps> = ({ isOpen, on
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           <div>
-            <label className="block text-xs font-mono uppercase text-slate-400 mb-1">
+            <label className="block text-xs font-sans font-semibold uppercase text-[#667085] mb-1">
               Scenario Title
             </label>
             <input
@@ -94,59 +94,59 @@ export const SaveScenarioModal: React.FC<SaveScenarioModalProps> = ({ isOpen, on
               required
               value={title}
               onChange={e => setTitle(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none transition-colors"
+              className="w-full bg-white border border-[#E2E5E9] focus:border-[#2563EB] rounded-xl px-3 py-2 text-sm text-[#172033] focus:outline-none transition-colors shadow-xs"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-mono uppercase text-slate-400 mb-1">
+            <label className="block text-xs font-sans font-semibold uppercase text-[#667085] mb-1">
               Description
             </label>
             <textarea
               rows={3}
               value={description}
               onChange={e => setDescription(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none transition-colors resize-none"
+              className="w-full bg-white border border-[#E2E5E9] focus:border-[#2563EB] rounded-xl px-3 py-2 text-sm text-[#172033] focus:outline-none transition-colors resize-none shadow-xs"
             />
           </div>
 
-          <div className="bg-slate-950/60 p-3 rounded-lg border border-slate-800/80 text-xs text-slate-400 space-y-1">
+          <div className="bg-[#F7F8FA] p-3 rounded-xl border border-[#E2E5E9] text-xs text-[#667085] space-y-1.5 font-sans">
             <div className="flex justify-between">
               <span>Environment Type:</span>
-              <strong className="text-slate-200">Campus Facility</strong>
+              <strong className="text-[#172033]">Campus Facility</strong>
             </div>
             <div className="flex justify-between">
               <span>Exit Portals:</span>
-              <strong className="text-slate-200">{exits.length} Zones</strong>
+              <strong className="text-[#172033]">{exits.length} Zones</strong>
             </div>
             <div className="flex justify-between">
               <span>Occupants:</span>
-              <strong className="text-slate-200">{agents.length} Agents</strong>
+              <strong className="text-[#172033]">{agents.length} Agents</strong>
             </div>
           </div>
 
-          <div className="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+          <div className="flex justify-end space-x-2 pt-2 border-t border-[#E2E5E9]">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 transition-colors"
+              className="px-4 py-2 rounded-xl bg-white hover:bg-[#F1F3F5] text-xs font-semibold text-[#172033] border border-[#E2E5E9] transition-colors shadow-xs"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold text-xs font-mono uppercase tracking-wider flex items-center space-x-1.5 transition-colors shadow-md shadow-cyan-500/20"
+              className="px-5 py-2 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs font-sans uppercase tracking-wider flex items-center space-x-1.5 transition-colors shadow-md hover:shadow-lg"
             >
               {saved ? (
                 <>
-                  <Check className="w-3.5 h-3.5 text-slate-950" />
+                  <Check className="w-4 h-4 text-white" />
                   <span>Saved!</span>
                 </>
               ) : (
                 <>
-                  <Save className="w-3.5 h-3.5 text-slate-950" />
-                  <span>{loading ? 'Saving...' : 'Save to MongoDB'}</span>
+                  <Save className="w-4 h-4 text-white" />
+                  <span>{loading ? 'Saving...' : 'Save Scenario'}</span>
                 </>
               )}
             </button>
