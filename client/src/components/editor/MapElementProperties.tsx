@@ -285,10 +285,73 @@ export const MapElementProperties: React.FC<MapElementPropertiesProps> = ({
                   <Minus className="w-3.5 h-3.5" />
                   <span>WALL SEGMENT</span>
                 </div>
-                <div className="text-[11px] text-[#667085] font-mono">
-                  From: ({selectedElement.data.x1.toFixed(1)}, {selectedElement.data.y1.toFixed(1)})
-                  <br />
-                  To: ({selectedElement.data.x2.toFixed(1)}, {selectedElement.data.y2.toFixed(1)})
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[#475467] text-[10px] font-medium uppercase mb-1">
+                      Start (X1, Y1)
+                    </label>
+                    <div className="flex gap-1">
+                      <input
+                        type="number"
+                        step="0.5"
+                        value={selectedElement.data.x1}
+                        onChange={e =>
+                          onUpdateElement('wall', selectedElement.data.id, {
+                            x1: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        className="w-1/2 px-1.5 py-1 rounded bg-white border border-[#CBD5E1] text-[#172033] font-mono text-[11px]"
+                      />
+                      <input
+                        type="number"
+                        step="0.5"
+                        value={selectedElement.data.y1}
+                        onChange={e =>
+                          onUpdateElement('wall', selectedElement.data.id, {
+                            y1: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        className="w-1/2 px-1.5 py-1 rounded bg-white border border-[#CBD5E1] text-[#172033] font-mono text-[11px]"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[#475467] text-[10px] font-medium uppercase mb-1">
+                      End (X2, Y2)
+                    </label>
+                    <div className="flex gap-1">
+                      <input
+                        type="number"
+                        step="0.5"
+                        value={selectedElement.data.x2}
+                        onChange={e =>
+                          onUpdateElement('wall', selectedElement.data.id, {
+                            x2: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        className="w-1/2 px-1.5 py-1 rounded bg-white border border-[#CBD5E1] text-[#172033] font-mono text-[11px]"
+                      />
+                      <input
+                        type="number"
+                        step="0.5"
+                        value={selectedElement.data.y2}
+                        onChange={e =>
+                          onUpdateElement('wall', selectedElement.data.id, {
+                            y2: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        className="w-1/2 px-1.5 py-1 rounded bg-white border border-[#CBD5E1] text-[#172033] font-mono text-[11px]"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="text-[10px] text-[#667085] font-mono">
+                  Length:{' '}
+                  {Math.hypot(
+                    selectedElement.data.x2 - selectedElement.data.x1,
+                    selectedElement.data.y2 - selectedElement.data.y1
+                  ).toFixed(2)}
+                  m
                 </div>
               </>
             )}
@@ -316,8 +379,21 @@ export const MapElementProperties: React.FC<MapElementPropertiesProps> = ({
                     className="w-full px-2 py-1 rounded-lg bg-white border border-[#CBD5E1] text-[#172033] font-mono text-xs focus:outline-none focus:border-[#2563EB]"
                   />
                 </div>
+                <div className="text-[10px] text-[#667085] font-mono">
+                  Position: ({selectedElement.data.x.toFixed(1)}, {selectedElement.data.y.toFixed(1)})
+                </div>
               </>
             )}
+
+            {/* Detection / Confidence Status Badge */}
+            <div className="pt-2 border-t border-[#E2E5E9] flex items-center justify-between text-[10px]">
+              <span className="text-[#667085]">Verification Status:</span>
+              <span className="font-semibold text-[#16A34A] bg-[#DCFCE7] px-2 py-0.5 rounded-full">
+                {selectedElement.data.status === 'detected'
+                  ? 'AUTOMATICALLY DETECTED'
+                  : 'MANUALLY CONFIRMED'}
+              </span>
+            </div>
           </div>
         )}
       </div>

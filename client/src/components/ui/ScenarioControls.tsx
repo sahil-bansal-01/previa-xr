@@ -42,6 +42,12 @@ export const ScenarioControls: React.FC<ScenarioControlsProps> = ({
     exits.length > 0 ? exits[0].id : 'exit-main'
   );
 
+  React.useEffect(() => {
+    if (exits.length > 0 && !exits.some(e => e.id === selectedExitId)) {
+      setSelectedExitId(exits[0].id);
+    }
+  }, [exits, selectedExitId]);
+
   const handleSelectAction = (action: WhatIfActionType) => {
     setSelectedAction(action);
     if (action === 'block_exit') {

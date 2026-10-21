@@ -50,18 +50,46 @@ export async function extractVideoFrames(
       }
 
       try {
+        let prevPixelData: Uint8ClampedArray | null = null;
+
         for (let i = 0; i < timestamps.length; i++) {
           const t = timestamps[i];
           await seekToTime(video, t);
 
           if (ctx) {
             ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
-            const imageData = canvas.toDataURL('image/jpeg', 0.75);
-            frames.push({
-              index: i,
-              timestamp: Math.round(t * 10) / 10,
-              imageData,
-            });
+
+            // Compute frame sample difference to filter redundant frames
+            const imgData = ctx.getImageData(0, 0, targetWidth, targetHeight);
+            const currentPixels = imgData.data;
+
+            let isRedundant = false;
+            if (prevPixelData && frames.length >= 3 && i < timestamps.length - 1) {
+              let diffCount = 0;
+              const step = 32; // sample every 32nd pixel for speed
+              for (let p = 0; p < currentPixels.length; p += step * 4) {
+                const diff =
+                  Math.abs(currentPixels[p] - prevPixelData[p]) +
+                  Math.abs(currentPixels[p + 1] - prevPixelData[p + 1]) +
+                  Math.abs(currentPixels[p + 2] - prevPixelData[p + 2]);
+                if (diff > 45) diffCount++;
+              }
+              const sampleSize = currentPixels.length / (step * 4);
+              if (diffCount / sampleSize < 0.03) {
+                // Less than 3% significant pixel change — redundant static frame
+                isRedundant = true;
+              }
+            }
+
+            if (!isRedundant || frames.length < 3) {
+              const imageData = canvas.toDataURL('image/jpeg', 0.75);
+              frames.push({
+                index: frames.length,
+                timestamp: Math.round(t * 10) / 10,
+                imageData,
+              });
+              prevPixelData = currentPixels;
+            }
           }
 
           if (onProgress) {

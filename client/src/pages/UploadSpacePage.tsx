@@ -4,7 +4,6 @@ import { FileDropzone } from '../components/upload/FileDropzone';
 import { AnalysisProgress, AnalysisStage } from '../components/upload/AnalysisProgress';
 import { FrameThumbnails } from '../components/upload/FrameThumbnails';
 import { extractVideoFrames, extractImageThumbnails, ExtractedFrame } from '../services/frameExtractor';
-import { defaultSpatialProvider } from '../services/spatialAnalysisProvider';
 import { environmentService } from '../services/environmentService';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -12,7 +11,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   ArrowRight,
-  Sparkles,
   Info,
   Compass,
 } from 'lucide-react';
@@ -37,10 +35,10 @@ export const UploadSpacePage: React.FC = () => {
     setFiles(newFiles);
     if (newFiles.length > 0) {
       const raw = newFiles[0].name.split('.')[0];
-      if (/whatsapp|vid[_\-]|img[_\-]|mov|mp4|webm|png|jpg|\d{6}/i.test(raw) || raw.length > 25) {
-        setEnvironmentName('My Space');
+      if (/^(whatsapp[_\-\s]|img[_-]\d{6}|vid[_-]\d{6})/i.test(raw) || raw.length > 35) {
+        setEnvironmentName('Custom Space');
       } else {
-        const baseName = raw.replace(/[-_]/g, ' ');
+        const baseName = raw.replace(/[-_]/g, ' ').trim();
         setEnvironmentName(baseName.charAt(0).toUpperCase() + baseName.slice(1));
       }
     }
@@ -69,11 +67,20 @@ export const UploadSpacePage: React.FC = () => {
         }
       }
 
-      // Step 1: Upload received
+      // Step 1: Create unique environment and store original video/images
       setCurrentStep('upload');
-      await new Promise(r => setTimeout(r, 600));
+      const sourceType = isVideo ? 'video' : 'images';
+      const createdEnv = await environmentService.createEnvironment({
+        name: environmentName.trim() || 'My Space',
+        sourceType,
+      });
+      const envId = createdEnv._id;
+      setCreatedEnvId(envId);
 
-      // Step 2: Extracting frames
+      // Store original files under server/uploads/<environmentId>/original/
+      await environmentService.uploadFiles(files, envId, 'original');
+
+      // Step 2: Extract representative frames (beginning, several middle, end)
       setCurrentStep('extracting');
       let frames: ExtractedFrame[] = [];
 
@@ -85,47 +92,40 @@ export const UploadSpacePage: React.FC = () => {
       }
 
       setExtractedFrames(frames);
-      await new Promise(r => setTimeout(r, 500));
 
-      // Step 3: Preparing spatial map via SpatialAnalysisProvider
+      // Store extracted frames under server/uploads/<environmentId>/frames/
+      if (frames.length > 0) {
+        try {
+          const frameBlobs = frames
+            .filter(f => Boolean(f.imageData))
+            .map(f => {
+              const parts = f.imageData.split(',');
+              const mimeMatch = parts[0].match(/:(.*?);/);
+              const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+              const binary = atob(parts[1]);
+              const array = new Uint8Array(binary.length);
+              for (let i = 0; i < binary.length; i++) {
+                array[i] = binary.charCodeAt(i);
+              }
+              return new Blob([array], { type: mime });
+            });
+          await environmentService.uploadFiles(frameBlobs, envId, 'frame');
+        } catch (frameUploadErr) {
+          console.warn('Frame storage notice:', frameUploadErr);
+        }
+      }
+
+      // Step 3: Analyze spatial content and generate candidate geometry for this specific environment
       setCurrentStep('preparing');
-      const candidateGeometry = await defaultSpatialProvider.analyzeFrames(frames);
-      setNoticeMessage(candidateGeometry.notice);
+      const analyzedEnv = await environmentService.analyzeEnvironment(envId);
+      const notice =
+        analyzedEnv.metadata?.analysisNotice ||
+        'Candidate map generated. Please verify the space before simulation.';
+      setNoticeMessage(notice);
 
-      // Step 4: Create Environment in backend
-      const sourceType = isVideo ? 'video' : 'images';
-      const createdEnv = await environmentService.createEnvironment({
-        name: environmentName.trim() || 'My Spatial Environment',
-        sourceType,
-        sourceFiles: files.map(f => ({
-          filename: f.name,
-          originalName: f.name,
-          mimetype: f.type,
-          size: f.size,
-          path: f.name,
-        })),
-        geometry: {
-          walls: candidateGeometry.walls,
-          rooms: candidateGeometry.rooms,
-          corridors: [],
-          doors: candidateGeometry.doors,
-        },
-        exits: candidateGeometry.exits,
-        obstacles: candidateGeometry.obstacles,
-        people: candidateGeometry.people,
-        metadata: {
-          buildingName: environmentName,
-          totalAreaSqM: 180,
-          extractedFramesCount: frames.length,
-          confidenceScore: candidateGeometry.isAiGenerated ? 0.88 : 0.65,
-        },
-      });
-
-      setCreatedEnvId(createdEnv._id);
-
-      // Store frames in sessionStorage for reference panel
+      // Store frames in sessionStorage for reference panel in 2D editor
       try {
-        sessionStorage.setItem(`env_frames_${createdEnv._id}`, JSON.stringify(frames.slice(0, 10)));
+        sessionStorage.setItem(`env_frames_${envId}`, JSON.stringify(frames.slice(0, 10)));
       } catch (storageErr) {
         console.warn('SessionStorage quota exceeded for frames:', storageErr);
       }
@@ -264,7 +264,7 @@ export const UploadSpacePage: React.FC = () => {
                 <Info className="w-4 h-4 text-[#2563EB] flex-shrink-0 mt-0.5" />
                 <div className="text-xs text-[#1E40AF]">
                   {currentStep === 'ready'
-                    ? 'Approximate map generated. Please verify before simulation.'
+                    ? (noticeMessage || 'Approximate map generated. Please verify before simulation.')
                     : 'Analyzing walkthrough footage and extracting spatial boundaries...'}
                 </div>
               </div>

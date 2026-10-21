@@ -12,6 +12,8 @@ import {
   ZoomOut,
   RotateCcw,
   Minus,
+  Undo2,
+  Redo2,
 } from 'lucide-react';
 
 export type EditorTool =
@@ -31,7 +33,10 @@ interface MapToolbarProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onResetView: () => void;
-  onClearAll?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
 }
 
 export const MapToolbar: React.FC<MapToolbarProps> = ({
@@ -40,10 +45,15 @@ export const MapToolbar: React.FC<MapToolbarProps> = ({
   onZoomIn,
   onZoomOut,
   onResetView,
+  canUndo = false,
+  canRedo = false,
+  onUndo,
+  onRedo,
 }) => {
   const tools: { id: EditorTool; label: string; icon: React.ReactNode; shortcut: string }[] = [
     { id: 'select', label: 'Select', icon: <MousePointer className="w-3.5 h-3.5" />, shortcut: 'V' },
     { id: 'wall', label: 'Wall', icon: <Minus className="w-3.5 h-3.5 stroke-[3]" />, shortcut: 'W' },
+    { id: 'room', label: 'Room', icon: <Square className="w-3.5 h-3.5" />, shortcut: 'R' },
     { id: 'door', label: 'Door', icon: <DoorOpen className="w-3.5 h-3.5" />, shortcut: 'D' },
     { id: 'exit', label: 'Exit', icon: <LogOut className="w-3.5 h-3.5" />, shortcut: 'E' },
     { id: 'obstacle', label: 'Obstacle', icon: <ShieldAlert className="w-3.5 h-3.5" />, shortcut: 'O' },
@@ -64,7 +74,7 @@ export const MapToolbar: React.FC<MapToolbarProps> = ({
               type="button"
               onClick={() => onSelectTool(tool.id)}
               title={`${tool.label} (${tool.shortcut})`}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 isActive
                   ? 'bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE] font-semibold shadow-xs'
                   : 'text-[#667085] hover:text-[#172033] hover:bg-[#F1F3F5] border border-transparent'
@@ -77,8 +87,41 @@ export const MapToolbar: React.FC<MapToolbarProps> = ({
         })}
       </div>
 
-      {/* View controls */}
+      {/* History and View Controls */}
       <div className="flex items-center gap-1 pl-2 border-l border-[#E2E5E9]">
+        {onUndo && (
+          <button
+            type="button"
+            onClick={onUndo}
+            disabled={!canUndo}
+            title="Undo (Ctrl+Z)"
+            className={`p-1.5 rounded-lg transition-colors ${
+              canUndo
+                ? 'text-[#667085] hover:text-[#172033] hover:bg-[#F1F3F5]'
+                : 'text-[#CBD5E1] cursor-not-allowed'
+            }`}
+          >
+            <Undo2 className="w-4 h-4" />
+          </button>
+        )}
+        {onRedo && (
+          <button
+            type="button"
+            onClick={onRedo}
+            disabled={!canRedo}
+            title="Redo (Ctrl+Y)"
+            className={`p-1.5 rounded-lg transition-colors ${
+              canRedo
+                ? 'text-[#667085] hover:text-[#172033] hover:bg-[#F1F3F5]'
+                : 'text-[#CBD5E1] cursor-not-allowed'
+            }`}
+          >
+            <Redo2 className="w-4 h-4" />
+          </button>
+        )}
+
+        <div className="w-[1px] h-4 bg-[#E2E5E9] mx-1" />
+
         <button
           type="button"
           onClick={onZoomIn}

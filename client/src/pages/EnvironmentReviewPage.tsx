@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { environmentService } from '../services/environmentService';
 import {
@@ -16,18 +16,28 @@ import { MapElementProperties, SelectedElement } from '../components/editor/MapE
 import { ReferenceFramePanel } from '../components/editor/ReferenceFramePanel';
 import { useSimulation } from '../contexts/SimulationContext';
 import {
+  validateFloorPlanGeometry,
+} from '../simulation/engine/geometryUtils';
+import { environmentToNavigationGraph } from '../simulation/engine/environmentAdapter';
+import {
   CheckCircle2,
   AlertTriangle,
   Play,
-  RotateCcw,
   Save,
-  ArrowRight,
   ShieldCheck,
-  Compass,
-  FileCheck,
   Edit2,
   Sparkles,
+  Info,
 } from 'lucide-react';
+
+interface FloorPlanSnapshot {
+  walls: MapWall[];
+  rooms: MapRoom[];
+  doors: any[];
+  exits: MapExit[];
+  obstacles: MapObstacle[];
+  people: MapPerson[];
+}
 
 export const EnvironmentReviewPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -48,12 +58,25 @@ export const EnvironmentReviewPage: React.FC = () => {
   const [obstacles, setObstacles] = useState<MapObstacle[]>([]);
   const [people, setPeople] = useState<MapPerson[]>([]);
 
+  // History stack for Undo / Redo
+  const [history, setHistory] = useState<FloorPlanSnapshot[]>([]);
+  const [historyIndex, setHistoryIndex] = useState<number>(-1);
+
   const [activeTool, setActiveTool] = useState<EditorTool>('select');
   const [selectedElement, setSelectedElement] = useState<SelectedElement>(null);
   const [zoom, setZoom] = useState<number>(1);
   const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [status, setStatus] = useState<'draft' | 'confirmed'>('draft');
   const [referenceFrames, setReferenceFrames] = useState<ExtractedFrame[]>([]);
+
+  // Push new snapshot to history
+  const pushHistory = useCallback((snapshot: FloorPlanSnapshot) => {
+    setHistory((prev) => {
+      const trimmed = prev.slice(0, historyIndex + 1);
+      return [...trimmed, snapshot].slice(-25); // cap at 25 steps
+    });
+    setHistoryIndex((prev) => prev + 1);
+  }, [historyIndex]);
 
   // Fetch Environment
   const fetchEnv = useCallback(async () => {
@@ -62,19 +85,45 @@ export const EnvironmentReviewPage: React.FC = () => {
       setLoading(true);
       const env = await environmentService.getEnvironmentById(id);
       setEnvironment(env);
-      setWalls(env.geometry?.walls || []);
-      setRooms(env.geometry?.rooms || []);
-      setDoors(env.geometry?.doors || []);
-      setExits(env.exits || []);
-      setObstacles(env.obstacles || []);
-      setPeople(env.people || []);
+      const initialWalls = env.geometry?.walls || [];
+      const initialRooms = env.geometry?.rooms || [];
+      const initialDoors = env.geometry?.doors || [];
+      const initialExits = env.exits || [];
+      const initialObstacles = env.obstacles || [];
+      const initialPeople = env.people || [];
+
+      setWalls(initialWalls);
+      setRooms(initialRooms);
+      setDoors(initialDoors);
+      setExits(initialExits);
+      setObstacles(initialObstacles);
+      setPeople(initialPeople);
       setStatus(env.analysisStatus === 'confirmed' ? 'confirmed' : 'draft');
 
-      // Load reference frames from sessionStorage if available
+      const initialSnapshot: FloorPlanSnapshot = {
+        walls: initialWalls,
+        rooms: initialRooms,
+        doors: initialDoors,
+        exits: initialExits,
+        obstacles: initialObstacles,
+        people: initialPeople,
+      };
+      setHistory([initialSnapshot]);
+      setHistoryIndex(0);
+
+      // Load reference frames from sessionStorage or backend metadata if available
       try {
         const storedFrames = sessionStorage.getItem(`env_frames_${id}`);
         if (storedFrames) {
           setReferenceFrames(JSON.parse(storedFrames));
+        } else if (env.metadata?.extractedFrames) {
+          setReferenceFrames(
+            env.metadata.extractedFrames.map((f: any, idx: number) => ({
+              index: f.index ?? idx,
+              timestamp: f.timestamp ?? 0,
+              imageData: f.url || (f.path ? `http://localhost:5000${f.path}` : f.imageData || ''),
+            }))
+          );
         }
       } catch (e) {
         console.warn('Unable to load stored frames:', e);
@@ -91,76 +140,179 @@ export const EnvironmentReviewPage: React.FC = () => {
     fetchEnv();
   }, [fetchEnv]);
 
-  // Validation function
-  const validateEnvironment = (): string | null => {
-    if (exits.length === 0) {
-      return 'Add at least one exit before continuing. Use the EXIT tool to place an exit.';
+  // Undo / Redo handlers
+  const canUndo = historyIndex > 0;
+  const canRedo = historyIndex < history.length - 1;
+
+  const handleUndo = useCallback(() => {
+    if (!canUndo) return;
+    const targetIdx = historyIndex - 1;
+    const snap = history[targetIdx];
+    if (snap) {
+      setWalls(snap.walls);
+      setRooms(snap.rooms);
+      setDoors(snap.doors);
+      setExits(snap.exits);
+      setObstacles(snap.obstacles);
+      setPeople(snap.people);
+      setHistoryIndex(targetIdx);
+      setSelectedElement(null);
     }
-    if (walls.length === 0 && rooms.length === 0) {
-      return 'Add at least one wall or room perimeter to define the space boundary.';
+  }, [canUndo, historyIndex, history]);
+
+  const handleRedo = useCallback(() => {
+    if (!canRedo) return;
+    const targetIdx = historyIndex + 1;
+    const snap = history[targetIdx];
+    if (snap) {
+      setWalls(snap.walls);
+      setRooms(snap.rooms);
+      setDoors(snap.doors);
+      setExits(snap.exits);
+      setObstacles(snap.obstacles);
+      setPeople(snap.people);
+      setHistoryIndex(targetIdx);
+      setSelectedElement(null);
     }
-    if (people.length === 0) {
-      return 'Add at least one occupant / starting position to run evacuation simulation.';
+  }, [canRedo, historyIndex, history]);
+
+  // Keyboard shortcut listener for Ctrl+Z / Ctrl+Y
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        if (e.shiftKey) {
+          e.preventDefault();
+          handleRedo();
+        } else {
+          e.preventDefault();
+          handleUndo();
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo, handleRedo]);
+
+  // Live structural & pathfinding geometry validation
+  const validationReport = useMemo(() => {
+    const report = validateFloorPlanGeometry(walls, rooms, doors, exits, obstacles, people);
+
+    // Live reachability check using A* PathfindingEngine
+    if (people.length > 0 && exits.length > 0) {
+      try {
+        const dummyEnv: Environment = {
+          name: environment?.name || 'Test',
+          sourceType: 'demo',
+          sourceFiles: [],
+          analysisStatus: 'analyzed',
+          geometry: { walls, rooms, corridors: [], doors },
+          navigation: { gridWidth: 24, gridHeight: 16, cellSize: 1 },
+          exits,
+          obstacles,
+          people,
+        };
+
+        const converted = environmentToNavigationGraph(dummyEnv);
+        people.forEach((p) => {
+          let canReachAnyExit = false;
+          converted.exits.forEach((ex) => {
+            const res = converted.pathfinder.findPathToExit(p.x, p.y, ex);
+            if (res.reachable && res.path.length > 0) {
+              canReachAnyExit = true;
+            }
+          });
+
+          if (!canReachAnyExit) {
+            report.warnings.push(
+              `Occupant "${p.label || 'P'}" cannot reach any exit. Ensure doorways connect their area to an exit corridor.`
+            );
+          }
+        });
+      } catch (e) {
+        // Silently skip if graph is being edited
+      }
     }
-    return null;
-  };
+
+    return report;
+  }, [walls, rooms, doors, exits, obstacles, people, environment?.name]);
 
   // Add handlers
   const handleAddWall = (w: MapWall) => {
-    setWalls(prev => [...prev, w]);
+    const newWalls = [...walls, w];
+    setWalls(newWalls);
+    pushHistory({ walls: newWalls, rooms, doors, exits, obstacles, people });
   };
 
   const handleAddRoom = (r: MapRoom) => {
-    setRooms(prev => [...prev, r]);
+    const newRooms = [...rooms, r];
+    setRooms(newRooms);
+    pushHistory({ walls, rooms: newRooms, doors, exits, obstacles, people });
   };
 
   const handleAddDoor = (d: any) => {
-    setDoors(prev => [...prev, d]);
+    const newDoors = [...doors, d];
+    setDoors(newDoors);
+    pushHistory({ walls, rooms, doors: newDoors, exits, obstacles, people });
   };
 
   const handleAddExit = (ex: MapExit) => {
-    setExits(prev => [...prev, ex]);
+    const newExits = [...exits, ex];
+    setExits(newExits);
     setValidationError(null);
+    pushHistory({ walls, rooms, doors, exits: newExits, obstacles, people });
   };
 
   const handleAddObstacle = (obs: MapObstacle) => {
-    setObstacles(prev => [...prev, obs]);
+    const newObs = [...obstacles, obs];
+    setObstacles(newObs);
+    pushHistory({ walls, rooms, doors, exits, obstacles: newObs, people });
   };
 
   const handleAddPerson = (p: MapPerson) => {
-    setPeople(prev => [...prev, p]);
+    const newPeople = [...people, p];
+    setPeople(newPeople);
     setValidationError(null);
+    pushHistory({ walls, rooms, doors, exits, obstacles, people: newPeople });
   };
 
   // Update handler
   const handleUpdateElement = (type: string, elemId: string, updatedFields: any) => {
     if (type === 'exit') {
-      setExits(prev => prev.map(e => (e.id === elemId ? { ...e, ...updatedFields } : e)));
+      const newExits = exits.map((e) => (e.id === elemId ? { ...e, ...updatedFields } : e));
+      setExits(newExits);
       if (selectedElement?.type === 'exit' && selectedElement.data.id === elemId) {
         setSelectedElement({ type: 'exit', data: { ...selectedElement.data, ...updatedFields } });
       }
     } else if (type === 'room') {
-      setRooms(prev => prev.map(r => (r.id === elemId ? { ...r, ...updatedFields } : r)));
+      const newRooms = rooms.map((r) => (r.id === elemId ? { ...r, ...updatedFields } : r));
+      setRooms(newRooms);
       if (selectedElement?.type === 'room' && selectedElement.data.id === elemId) {
         setSelectedElement({ type: 'room', data: { ...selectedElement.data, ...updatedFields } });
       }
     } else if (type === 'obstacle') {
-      setObstacles(prev => prev.map(o => (o.id === elemId ? { ...o, ...updatedFields } : o)));
+      const newObs = obstacles.map((o) => (o.id === elemId ? { ...o, ...updatedFields } : o));
+      setObstacles(newObs);
       if (selectedElement?.type === 'obstacle' && selectedElement.data.id === elemId) {
         setSelectedElement({ type: 'obstacle', data: { ...selectedElement.data, ...updatedFields } });
       }
     } else if (type === 'person') {
-      setPeople(prev => prev.map(p => (p.id === elemId ? { ...p, ...updatedFields } : p)));
+      const newPeople = people.map((p) => (p.id === elemId ? { ...p, ...updatedFields } : p));
+      setPeople(newPeople);
       if (selectedElement?.type === 'person' && selectedElement.data.id === elemId) {
         setSelectedElement({ type: 'person', data: { ...selectedElement.data, ...updatedFields } });
       }
     } else if (type === 'door') {
-      setDoors(prev => prev.map(d => (d.id === elemId ? { ...d, ...updatedFields } : d)));
+      const newDoors = doors.map((d) => (d.id === elemId ? { ...d, ...updatedFields } : d));
+      setDoors(newDoors);
       if (selectedElement?.type === 'door' && selectedElement.data.id === elemId) {
         setSelectedElement({ type: 'door', data: { ...selectedElement.data, ...updatedFields } });
       }
     } else if (type === 'wall') {
-      setWalls(prev => prev.map(w => (w.id === elemId ? { ...w, ...updatedFields } : w)));
+      const newWalls = walls.map((w) => (w.id === elemId ? { ...w, ...updatedFields } : w));
+      setWalls(newWalls);
       if (selectedElement?.type === 'wall' && selectedElement.data.id === elemId) {
         setSelectedElement({ type: 'wall', data: { ...selectedElement.data, ...updatedFields } });
       }
@@ -169,13 +321,28 @@ export const EnvironmentReviewPage: React.FC = () => {
 
   // Delete handler
   const handleDeleteElement = (type: string, elemId: string) => {
-    if (type === 'wall') setWalls(prev => prev.filter(w => w.id !== elemId));
-    if (type === 'room') setRooms(prev => prev.filter(r => r.id !== elemId));
-    if (type === 'door') setDoors(prev => prev.filter(d => d.id !== elemId));
-    if (type === 'exit') setExits(prev => prev.filter(e => e.id !== elemId));
-    if (type === 'obstacle') setObstacles(prev => prev.filter(o => o.id !== elemId));
-    if (type === 'person') setPeople(prev => prev.filter(p => p.id !== elemId));
+    let nw = walls;
+    let nr = rooms;
+    let nd = doors;
+    let ne = exits;
+    let no = obstacles;
+    let np = people;
+
+    if (type === 'wall') nw = walls.filter((w) => w.id !== elemId);
+    if (type === 'room') nr = rooms.filter((r) => r.id !== elemId);
+    if (type === 'door') nd = doors.filter((d) => d.id !== elemId);
+    if (type === 'exit') ne = exits.filter((e) => e.id !== elemId);
+    if (type === 'obstacle') no = obstacles.filter((o) => o.id !== elemId);
+    if (type === 'person') np = people.filter((p) => p.id !== elemId);
+
+    setWalls(nw);
+    setRooms(nr);
+    setDoors(nd);
+    setExits(ne);
+    setObstacles(no);
+    setPeople(np);
     setSelectedElement(null);
+    pushHistory({ walls: nw, rooms: nr, doors: nd, exits: ne, obstacles: no, people: np });
   };
 
   // Save draft
@@ -199,9 +366,8 @@ export const EnvironmentReviewPage: React.FC = () => {
 
   // Confirm environment
   const handleConfirmEnvironment = async () => {
-    const error = validateEnvironment();
-    if (error) {
-      setValidationError(error);
+    if (!validationReport.isValid) {
+      setValidationError(validationReport.errors[0] || 'Please fix geometry errors before confirming.');
       return;
     }
     setValidationError(null);
@@ -209,7 +375,6 @@ export const EnvironmentReviewPage: React.FC = () => {
     if (!id) return;
     try {
       setSaving(true);
-      // First update geometries
       await environmentService.updateEnvironment(id, {
         geometry: { walls, rooms, corridors: [], doors },
         exits,
@@ -217,12 +382,10 @@ export const EnvironmentReviewPage: React.FC = () => {
         people,
       });
 
-      // Then confirm
       const confirmedEnv = await environmentService.confirmEnvironment(id);
       setEnvironment(confirmedEnv);
       setStatus('confirmed');
 
-      // Update simulation context with this active environment
       loadEnvironment(confirmedEnv);
     } catch (e: any) {
       console.error('Error confirming environment:', e);
@@ -251,10 +414,10 @@ export const EnvironmentReviewPage: React.FC = () => {
   return (
     <div className="min-h-[calc(100vh-4.5rem)] bg-[#F7F8FA] text-[#172033] flex flex-col py-6 px-4 md:px-8">
       {/* Top Header */}
-      <div className="max-w-7xl mx-auto w-full mb-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#E2E5E9]">
+      <div className="max-w-7xl mx-auto w-full mb-3">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-[#E2E5E9]">
           <div>
-            <div className="flex items-center space-x-2 text-[#2563EB] font-sans text-xs tracking-wider uppercase mb-1.5 font-bold">
+            <div className="flex items-center space-x-2 text-[#2563EB] font-sans text-xs tracking-wider uppercase mb-1 font-bold">
               <span>PREVIA XR</span>
               <span>&bull;</span>
               <span className="px-2.5 py-0.5 rounded-full bg-[#EFF6FF] border border-[#BFDBFE] text-[#2563EB]">
@@ -262,11 +425,7 @@ export const EnvironmentReviewPage: React.FC = () => {
               </span>
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold font-sans tracking-tight text-[#172033] flex items-center gap-3">
-              <span>
-                {environment?.name && !/whatsapp|vid[_\-]|img[_\-]|mov|mp4|webm|\d{6}/i.test(environment.name)
-                  ? environment.name
-                  : 'My Space'}
-              </span>
+              <span>{environment?.name?.trim() || 'Custom Space'}</span>
               <span
                 className={`text-xs px-3 py-1 rounded-full font-sans font-semibold uppercase tracking-wide ${
                   status === 'confirmed'
@@ -278,7 +437,7 @@ export const EnvironmentReviewPage: React.FC = () => {
               </span>
             </h1>
             <p className="text-xs md:text-sm text-[#667085] mt-1 font-sans">
-              Review and correct the approximate 2D spatial model. Add or reposition walls, doors, exits, obstacles, and people.
+              Review and correct 2D geometry, doors, and exits. Real wall openings and collision-aware paths are validated live.
             </p>
           </div>
 
@@ -296,30 +455,62 @@ export const EnvironmentReviewPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Validation error banner */}
+        {/* Quality & Validation Banner */}
+        <div className="mt-3">
+          {validationReport.errors.length > 0 ? (
+            <div className="p-3 rounded-xl bg-[#FEF2F2] border border-[#FCA5A5] text-[#991B1B] text-xs flex items-center gap-2.5 shadow-xs">
+              <AlertTriangle className="w-4 h-4 text-[#DC2626] flex-shrink-0" />
+              <div className="flex-1 font-sans">
+                <strong className="font-semibold">Action required before confirmation:</strong>{' '}
+                {validationReport.errors.join(' ')}
+              </div>
+            </div>
+          ) : validationReport.warnings.length > 0 ? (
+            <div className="p-3 rounded-xl bg-[#FFFBEB] border border-[#FDE68A] text-[#92400E] text-xs flex items-center gap-2.5 shadow-xs">
+              <Info className="w-4 h-4 text-[#D97706] flex-shrink-0" />
+              <div className="flex-1 font-sans">
+                <strong className="font-semibold">Geometry Quality Check:</strong>{' '}
+                {validationReport.warnings.slice(0, 2).join(' ')}
+                {validationReport.warnings.length > 2 && ` (+${validationReport.warnings.length - 2} more)`}
+              </div>
+            </div>
+          ) : (
+            <div className="p-2.5 rounded-xl bg-[#F0FDF4] border border-[#BBF7D0] text-[#166534] text-xs flex items-center gap-2 shadow-xs">
+              <CheckCircle2 className="w-4 h-4 text-[#16A34A] flex-shrink-0" />
+              <span className="font-sans font-medium">
+                Geometry quality verified: Perimeter closed, real doorway openings active, and pathfinding routes clear.
+              </span>
+            </div>
+          )}
+        </div>
+
         {validationError && (
-          <div className="mt-3 p-3.5 rounded-xl bg-[#FEF2F2] border border-[#FCA5A5] text-[#991B1B] text-xs md:text-sm flex items-center gap-2.5 shadow-sm">
-            <AlertTriangle className="w-4 h-4 text-[#DC2626] flex-shrink-0" />
-            <span className="font-sans font-medium">{validationError}</span>
+          <div className="mt-2 p-3 rounded-xl bg-[#FEF2F2] border border-[#FCA5A5] text-[#DC2626] text-xs flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <span>{validationError}</span>
           </div>
         )}
       </div>
 
       {/* Main 2D Editor Workspace */}
       <div className="max-w-7xl mx-auto w-full flex-1 flex flex-col space-y-4">
-        {/* Toolbar */}
+        {/* Toolbar with Undo / Redo */}
         <MapToolbar
           activeTool={activeTool}
-          onSelectTool={tool => {
+          onSelectTool={(tool) => {
             setActiveTool(tool);
             if (tool !== 'select') setSelectedElement(null);
           }}
-          onZoomIn={() => setZoom(prev => Math.min(2.5, prev + 0.15))}
-          onZoomOut={() => setZoom(prev => Math.max(0.6, prev - 0.15))}
+          onZoomIn={() => setZoom((prev) => Math.min(2.5, prev + 0.15))}
+          onZoomOut={() => setZoom((prev) => Math.max(0.6, prev - 0.15))}
           onResetView={() => {
             setZoom(1);
             setPanOffset({ x: 0, y: 0 });
           }}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
         />
 
         {/* Main Split: Left 2D Editor / Right Properties & Reference */}
@@ -378,7 +569,7 @@ export const EnvironmentReviewPage: React.FC = () => {
               </div>
             ) : (
               <div className="text-xs text-[#667085] font-sans">
-                Verify geometry, doors, and exits, then click <strong className="text-[#172033]">Confirm Environment</strong> to proceed to 3D simulation.
+                Review and adjust spatial geometry, then click <strong className="text-[#172033]">Confirm Space</strong> to unlock 3D evacuation simulation.
               </div>
             )}
           </div>
@@ -408,8 +599,12 @@ export const EnvironmentReviewPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handleConfirmEnvironment}
-                disabled={saving}
-                className="w-full sm:w-auto px-7 py-3 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-sans font-bold text-xs uppercase tracking-wider flex items-center justify-center space-x-2 transition-all shadow-md hover:shadow-lg"
+                disabled={saving || !validationReport.isValid}
+                className={`w-full sm:w-auto px-7 py-3 rounded-xl text-white font-sans font-bold text-xs uppercase tracking-wider flex items-center justify-center space-x-2 transition-all shadow-md ${
+                  validationReport.isValid
+                    ? 'bg-[#2563EB] hover:bg-[#1D4ED8] hover:shadow-lg cursor-pointer'
+                    : 'bg-[#94A3B8] cursor-not-allowed opacity-80'
+                }`}
               >
                 <ShieldCheck className="w-4 h-4" />
                 <span>CONFIRM SPACE</span>

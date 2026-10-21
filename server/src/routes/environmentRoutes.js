@@ -16,6 +16,7 @@ const router = Router();
 
 // Upload files route
 router.post('/upload', upload.array('files', 20), uploadFiles);
+router.post('/:id/upload', upload.array('files', 20), uploadFiles);
 
 // Environment CRUD & Lifecycle
 router.get('/', optionalAuth, getEnvironments);

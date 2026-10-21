@@ -7,8 +7,6 @@ import {
   ChevronDown,
   Building,
   CheckCircle2,
-  Sparkles,
-  Layers,
 } from 'lucide-react';
 
 export const EnvironmentSelector: React.FC = () => {
@@ -27,19 +25,16 @@ export const EnvironmentSelector: React.FC = () => {
     } else if (val === 'upload_new') {
       navigate('/upload-space');
     } else {
-      const chosen = userEnvironments.find(env => env._id === val);
+      const chosen = userEnvironments.find(env => (env._id === val || env.id === val));
       if (chosen) {
         loadEnvironment(chosen);
       }
     }
   };
 
-  const formatDisplayName = (name: string): string => {
-    if (!name) return 'My Space';
-    if (/whatsapp|vid[_\-]|img[_\-]|mov|mp4|webm|png|jpg|\d{6}/i.test(name) || name.length > 25) {
-      return 'My Space';
-    }
-    return name;
+  const getCleanDisplayName = (name: string): string => {
+    if (!name) return 'Custom Space';
+    return name.trim();
   };
 
   return (
@@ -51,16 +46,21 @@ export const EnvironmentSelector: React.FC = () => {
 
       <div className="relative">
         <select
-          value={activeEnvironment ? activeEnvironment._id : 'demo'}
+          value={activeEnvironment ? (activeEnvironment._id || activeEnvironment.id) : 'demo'}
           onChange={handleSelectChange}
           className="appearance-none bg-white border border-[#E2E5E9] hover:border-[#2563EB] text-[#172033] py-1 pl-2.5 pr-7 rounded-lg text-xs font-sans font-semibold focus:outline-none focus:ring-1 focus:ring-[#2563EB] cursor-pointer transition-all shadow-xs"
         >
-          <option value="demo">Demo Campus Complex</option>
-          {userEnvironments.map(env => (
-            <option key={env._id} value={env._id}>
-              {formatDisplayName(env.name)} ({env.analysisStatus === 'confirmed' ? 'Verified' : 'Draft'})
-            </option>
-          ))}
+          <option value="demo">DEMO ENVIRONMENT (Campus Complex)</option>
+          {userEnvironments.map(env => {
+            const envKey = env._id || env.id || 'env';
+            const name = getCleanDisplayName(env.name);
+            const statusTag = env.analysisStatus === 'confirmed' ? 'Verified' : 'Draft';
+            return (
+              <option key={envKey} value={envKey}>
+                CUSTOM SPACE — {name} ({statusTag})
+              </option>
+            );
+          })}
           <option value="upload_new">+ Upload Your Space...</option>
         </select>
         <ChevronDown className="w-3.5 h-3.5 text-[#667085] pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" />

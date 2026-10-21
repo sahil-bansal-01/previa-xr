@@ -8,6 +8,8 @@ import {
 } from '../types/simulationTypes';
 import { PathfindingEngine } from './PathfindingEngine';
 
+import { segmentAllWalls } from './geometryUtils';
+
 export interface ConvertedSimulationEnvironment {
   gridWidth: number;
   gridHeight: number;
@@ -23,6 +25,7 @@ export interface ConvertedSimulationEnvironment {
  * Adapter that converts user-created 2D Environment geometry into
  * the exact spatial structures consumed by the existing A* PathfindingEngine
  * and 3D React Three Fiber scene.
+ * Real wall segmentation around doors and exits guarantees clear navigable openings.
  */
 export function environmentToNavigationGraph(
   environment: Environment,
@@ -31,11 +34,15 @@ export function environmentToNavigationGraph(
   const gridWidth = environment.navigation?.gridWidth || 24;
   const gridHeight = environment.navigation?.gridHeight || 16;
 
-  // 1. Convert 2D line walls into WallSegments for 3D and A* grid
-  const walls: WallSegment[] = [];
+  // 1. Physically segment 2D line walls around all door openings and exit gaps
   const rawWalls = environment.geometry?.walls || [];
+  const doors = environment.geometry?.doors || [];
+  const rawExits = environment.exits || [];
 
-  rawWalls.forEach((w, index) => {
+  const segmentedWalls = segmentAllWalls(rawWalls, doors, rawExits);
+  const walls: WallSegment[] = [];
+
+  segmentedWalls.forEach((w, index) => {
     const dx = w.x2 - w.x1;
     const dz = w.y2 - w.y1;
     const len = Math.sqrt(dx * dx + dz * dz);
@@ -52,28 +59,28 @@ export function environmentToNavigationGraph(
       walls.push({
         x: midX,
         z: midZ,
-        width: Math.max(0.6, Math.abs(dx)),
-        depth: 0.4,
+        width: Math.max(0.4, Math.abs(dx)),
+        depth: 0.35,
         label: `Wall H-${index + 1}`,
       });
     } else if (isVertical) {
       walls.push({
         x: midX,
         z: midZ,
-        width: 0.4,
-        depth: Math.max(0.6, Math.abs(dz)),
+        width: 0.35,
+        depth: Math.max(0.4, Math.abs(dz)),
         label: `Wall V-${index + 1}`,
       });
     } else {
-      // Diagonal wall: decompose into overlapping discrete segments
+      // Diagonal wall: decompose into discrete segments
       const steps = Math.ceil(len * 2);
       for (let s = 0; s <= steps; s++) {
         const t = s / steps;
         walls.push({
           x: w.x1 + dx * t,
           z: w.y1 + dz * t,
-          width: 0.55,
-          depth: 0.55,
+          width: 0.45,
+          depth: 0.45,
           label: `Wall D-${index + 1}-${s}`,
         });
       }
@@ -92,12 +99,13 @@ export function environmentToNavigationGraph(
   }));
 
   // 3. Convert Exits (Supports ANY custom name: Main Exit, North Fire Exit, etc.)
-  const exits: ExitZone[] = (environment.exits || []).map((ex, i) => {
+  const exits: ExitZone[] = rawExits.map((ex, i) => {
     const isPrimary = i === 0 || ex.type === 'emergency';
     const color = ex.type === 'emergency' ? '#16a34a' : '#2563eb';
-    // Compute walkable interior entry threshold: 1.2m inward towards room center
-    const dirX = ex.x !== 0 ? -Math.sign(ex.x) : 0;
-    const dirY = ex.y !== 0 ? -Math.sign(ex.y) : 0;
+    // Compute walkable interior entry threshold: 1.2m inward towards building center
+    const dirLen = Math.hypot(ex.x, ex.y);
+    const dirX = dirLen > 0.1 ? -ex.x / dirLen : 0;
+    const dirY = dirLen > 0.1 ? -ex.y / dirLen : 0;
     const entryX = ex.x + dirX * 1.2;
     const entryY = ex.y + dirY * 1.2;
 

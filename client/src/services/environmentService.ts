@@ -19,6 +19,8 @@ export interface SingleEnvironmentResponse {
 export interface UploadFilesResponse {
   success: boolean;
   message: string;
+  environmentId?: string;
+  subfolder?: string;
   files: Array<{
     originalName: string;
     filename: string;
@@ -31,17 +33,39 @@ export interface UploadFilesResponse {
 }
 
 export const environmentService = {
-  async uploadFiles(files: File[]): Promise<UploadFilesResponse> {
+  async uploadFiles(
+    files: (File | Blob)[],
+    environmentId?: string,
+    subfolderType: 'original' | 'frame' = 'original'
+  ): Promise<UploadFilesResponse> {
     const formData = new FormData();
-    files.forEach(f => formData.append('files', f));
+    files.forEach((f, idx) => {
+      if (f instanceof File) {
+        formData.append('files', f);
+      } else {
+        const ext = f.type === 'image/png' ? 'png' : 'jpg';
+        formData.append('files', f, `frame_${idx}_${Date.now()}.${ext}`);
+      }
+    });
 
     const token = localStorage.getItem('previa_token');
     const headers: HeadersInit = {};
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
+    if (environmentId) {
+      headers['x-environment-id'] = environmentId;
+    }
 
-    const res = await fetch(`${API_BASE_URL}/environments/upload`, {
+    const queryParams = new URLSearchParams();
+    if (environmentId) queryParams.set('environmentId', environmentId);
+    queryParams.set('type', subfolderType);
+
+    const url = environmentId
+      ? `${API_BASE_URL}/environments/${environmentId}/upload?${queryParams.toString()}`
+      : `${API_BASE_URL}/environments/upload?${queryParams.toString()}`;
+
+    const res = await fetch(url, {
       method: 'POST',
       headers,
       body: formData,

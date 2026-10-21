@@ -337,13 +337,14 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         env = envOrId;
       }
       setActiveEnvironment(env);
+      const envKey = env._id || env.id || 'custom';
       try {
-        localStorage.setItem('previa_active_env_id', env._id);
+        localStorage.setItem('previa_active_env_id', envKey);
       } catch (e) {}
 
       // Preserve all user environments independently in the list
       setUserEnvironments(prev => {
-        const idx = prev.findIndex(e => e._id === env._id);
+        const idx = prev.findIndex(e => (e._id === envKey || e.id === envKey));
         if (idx >= 0) {
           const updated = [...prev];
           updated[idx] = env;
@@ -357,14 +358,26 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setWalls(navData.walls);
       setRooms(navData.rooms);
       setExits(navData.exits);
+
+      // Cleanly update or reset obstacle to prevent cross-environment state leaks
       if (navData.obstacles && navData.obstacles.length > 0) {
         setObstacle(navData.obstacles[0]);
+      } else {
+        setObstacle({
+          id: `obstacle-cart-${envKey}`,
+          name: 'Hazard Obstacle (Neutral Storage)',
+          position: [0, 0.4, -6.0],
+          scale: [1.6, 1.2, 1.2],
+          isBlockingExitA: false,
+          targetBlock: 'none',
+        });
       }
 
-      // Re-initialize A* pathfinder with custom space dimensions
+      // Re-initialize A* pathfinder with custom space dimensions and walls
       pathfinderRef.current = new PathfindingEngine(navData.gridWidth, navData.gridHeight, 2);
       pathfinderRef.current.bakeWalls(navData.walls);
 
+      // Calculate initial routes strictly for this environment's occupants
       calculateInitialPaths(navData.agents, navData.exits);
       setTimelinePhase('BEFORE');
       setIsPlaying(false);
@@ -396,32 +409,52 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const res = await environmentService.getEnvironments();
       setUserEnvironments(res);
 
-      // Section 7: REFRESH PERSISTENCE
       // Restore previous active environment if valid; otherwise demo complex
       const savedEnvId = localStorage.getItem('previa_active_env_id');
       if (savedEnvId && savedEnvId !== 'demo') {
-        const found = res.find((e: Environment) => e._id === savedEnvId);
+        const found = res.find((e: Environment) => (e._id === savedEnvId || e.id === savedEnvId));
         if (found) {
           await loadEnvironment(found);
+          return;
         }
       }
+      initScenario();
     } catch (err) {
       console.warn('[SimulationContext] Failed to load user environments:', err);
+      initScenario();
     }
-  }, [loadEnvironment]);
+  }, [initScenario, loadEnvironment]);
 
   const loadDemoEnvironment = useCallback(() => {
     try {
       localStorage.setItem('previa_active_env_id', 'demo');
     } catch (e) {}
     setActiveEnvironment(null);
+    clearObstacle();
+    setTimelinePhase('BEFORE');
+    setIsPlaying(false);
+    setSimulationTime(0);
+    setConsequence({
+      riskLevel: 'Low',
+      blockedExits: [],
+      affectedPeople: 0,
+      reroutedPeople: 0,
+      totalPeople: 10,
+      congestionLevel: '—',
+      congestionPercent: 0,
+      estimatedDelay: 0,
+      recommendedExit: '—',
+      bottleneckLocation: 'None',
+      evacuationRate: 100,
+      whySentence: 'Run the simulation to see what changes.',
+      timestamp: new Date().toLocaleTimeString(),
+    });
     initScenario();
   }, [initScenario]);
 
   useEffect(() => {
-    initScenario();
     refreshUserEnvironments();
-  }, [initScenario, refreshUserEnvironments]);
+  }, [refreshUserEnvironments]);
 
   // Action: Block any Exit dynamically by ID
   const blockExitById = useCallback((exitId: string) => {

@@ -13,15 +13,18 @@ if (!fs.existsSync(uploadDir)) {
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const rawEnvId = req.headers['x-environment-id'] || req.query.environmentId || req.body.environmentId;
+    const rawEnvId = req.params?.id || req.headers['x-environment-id'] || req.query?.environmentId || req.body?.environmentId;
     const envId = rawEnvId ? String(rawEnvId).replace(/[^a-zA-Z0-9_-]/g, '_') : ('env_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7));
     req.environmentId = envId;
 
-    const subfolder = req.query.type === 'frame' ? 'frames' : 'original';
+    const envDir = path.join(uploadDir, envId);
+    const origDir = path.join(envDir, 'original');
+    const framesDir = path.join(envDir, 'frames');
+    if (!fs.existsSync(origDir)) fs.mkdirSync(origDir, { recursive: true });
+    if (!fs.existsSync(framesDir)) fs.mkdirSync(framesDir, { recursive: true });
+
+    const subfolder = req.query?.type === 'frame' ? 'frames' : 'original';
     const targetDir = path.join(uploadDir, envId, subfolder);
-    if (!fs.existsSync(targetDir)) {
-      fs.mkdirSync(targetDir, { recursive: true });
-    }
     cb(null, targetDir);
   },
   filename: (req, file, cb) => {

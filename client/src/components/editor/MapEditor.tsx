@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import {
   MapWall,
   MapRoom,
@@ -8,6 +8,11 @@ import {
 } from '../../simulation/types/simulationTypes';
 import { EditorTool } from './MapToolbar';
 import { SelectedElement } from './MapElementProperties';
+import {
+  segmentAllWalls,
+  computeDoorGeometry,
+  computeCollisionAwareLabelOffsets,
+} from '../../simulation/engine/geometryUtils';
 
 interface MapEditorProps {
   walls: MapWall[];
@@ -61,11 +66,14 @@ export const MapEditor: React.FC<MapEditorProps> = ({
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // Dragging state
   const [draggedElement, setDraggedElement] = useState<{
     type: string;
     id: string;
     startX: number;
     startY: number;
+    handle?: 'p1' | 'p2' | 'body';
     initialElemPos: { x: number; y: number; x2?: number; y2?: number };
   } | null>(null);
 
@@ -97,31 +105,33 @@ export const MapEditor: React.FC<MapEditorProps> = ({
   );
 
   // Convert world coordinates to SVG canvas coordinates
-  const worldToSvg = (worldX: number, worldY: number) => {
-    return {
-      x: viewWidth / 2 + worldX * scale * zoom + panOffset.x,
-      y: viewHeight / 2 + worldY * scale * zoom + panOffset.y,
-    };
-  };
+  const worldToSvg = useCallback(
+    (worldX: number, worldY: number) => {
+      return {
+        x: viewWidth / 2 + worldX * scale * zoom + panOffset.x,
+        y: viewHeight / 2 + worldY * scale * zoom + panOffset.y,
+      };
+    },
+    [panOffset, zoom]
+  );
 
   // Validation notification state
   const [validationMsg, setValidationMsg] = useState<string | null>(null);
 
-  // Show transient validation toast
   const showValidation = (msg: string) => {
     setValidationMsg(msg);
     setTimeout(() => {
-      setValidationMsg(prev => (prev === msg ? null : prev));
+      setValidationMsg((prev) => (prev === msg ? null : prev));
     }, 2800);
   };
 
-  // Geometry vertex snapping helper (snaps to nearby wall vertices within 0.8m)
+  // Snapping to existing wall vertices (within 0.8m)
   const snapToNearbyVertex = (worldX: number, worldY: number, threshold = 0.8) => {
     let bestX = worldX;
     let bestY = worldY;
     let minDist = threshold;
 
-    walls.forEach(w => {
+    walls.forEach((w) => {
       const d1 = Math.hypot(w.x1 - worldX, w.y1 - worldY);
       if (d1 < minDist) {
         minDist = d1;
@@ -139,13 +149,13 @@ export const MapEditor: React.FC<MapEditorProps> = ({
     return { x: bestX, y: bestY, isSnapped: minDist < threshold };
   };
 
-  // Find closest wall to snap doors or exits
+  // Find closest wall for door/exit snapping
   const findClosestWall = (worldX: number, worldY: number) => {
     let closestWall: MapWall | null = null;
     let minDist = Infinity;
     let snapPos = { x: worldX, y: worldY };
 
-    walls.forEach(w => {
+    walls.forEach((w) => {
       const dx = w.x2 - w.x1;
       const dy = w.y2 - w.y1;
       const lenSq = dx * dx + dy * dy;
@@ -166,6 +176,16 @@ export const MapEditor: React.FC<MapEditorProps> = ({
     return { wall: closestWall, dist: minDist, snapPos };
   };
 
+  // Rendered wall segments with physical door & exit openings cut out
+  const renderedWallSegments = useMemo(() => {
+    return segmentAllWalls(walls, doors, exits);
+  }, [walls, doors, exits]);
+
+  // Collision-aware label offsets for occupants
+  const labelOffsets = useMemo(() => {
+    return computeCollisionAwareLabelOffsets(people, rooms, walls);
+  }, [people, rooms, walls]);
+
   const handlePointerDown = (e: React.PointerEvent) => {
     if (activeTool === 'pan' || e.button === 1) {
       setIsPanning(true);
@@ -181,7 +201,6 @@ export const MapEditor: React.FC<MapEditorProps> = ({
       if (!wallStart) {
         setWallStart(world);
       } else {
-        // Complete wall
         if (wallStart.x !== world.x || wallStart.y !== world.y) {
           onAddWall({
             id: `w-${Date.now()}`,
@@ -197,16 +216,15 @@ export const MapEditor: React.FC<MapEditorProps> = ({
       onAddRoom({
         id: `r-${Date.now()}`,
         name: `Room ${rooms.length + 1}`,
-        x: world.x - 3,
-        y: world.y - 2.5,
+        x: world.x,
+        y: world.y,
         width: 6,
         height: 5,
       });
     } else if (activeTool === 'door') {
-      // Require/encourage placement on a wall
       const wallCheck = findClosestWall(world.x, world.y);
       if (wallCheck.dist > 2.0) {
-        showValidation('Doors must be placed on a wall to create an opening.');
+        showValidation('Doors must be placed on or near a wall to create an opening.');
         return;
       }
       onAddDoor({
@@ -216,7 +234,6 @@ export const MapEditor: React.FC<MapEditorProps> = ({
         width: 1.5,
       });
     } else if (activeTool === 'exit') {
-      // Snap exit to wall opening or outer perimeter
       const wallCheck = findClosestWall(world.x, world.y);
       const exitPos = wallCheck.dist < 2.5 ? wallCheck.snapPos : world;
 
@@ -229,7 +246,6 @@ export const MapEditor: React.FC<MapEditorProps> = ({
         type: exitCount === 1 ? 'emergency' : 'normal',
       });
     } else if (activeTool === 'obstacle') {
-      // Prevent accidental placement directly inside walls
       const wallCheck = findClosestWall(world.x, world.y);
       if (wallCheck.dist < 0.4) {
         showValidation('Obstacles cannot be placed directly inside a wall.');
@@ -246,10 +262,9 @@ export const MapEditor: React.FC<MapEditorProps> = ({
         movable: true,
       });
     } else if (activeTool === 'person') {
-      // Snap to walkable area; prevent placement inside walls
       const wallCheck = findClosestWall(world.x, world.y);
       if (wallCheck.dist < 0.35) {
-        showValidation('People cannot be placed inside walls. Snapped to walkable area.');
+        showValidation('People cannot be placed inside walls.');
         return;
       }
 
@@ -260,7 +275,6 @@ export const MapEditor: React.FC<MapEditorProps> = ({
         label: `P${people.length + 1}`,
       });
     } else if (activeTool === 'select') {
-      // If clicked empty space, deselect
       onSelectElement(null);
     }
   };
@@ -283,12 +297,24 @@ export const MapEditor: React.FC<MapEditorProps> = ({
       const initial = draggedElement.initialElemPos;
 
       if (draggedElement.type === 'wall' && initial.x2 !== undefined && initial.y2 !== undefined) {
-        onUpdateElement('wall', draggedElement.id, {
-          x1: snap(initial.x + dx),
-          y1: snap(initial.y + dy),
-          x2: snap(initial.x2 + dx),
-          y2: snap(initial.y2 + dy),
-        });
+        if (draggedElement.handle === 'p1') {
+          onUpdateElement('wall', draggedElement.id, {
+            x1: snap(initial.x + dx),
+            y1: snap(initial.y + dy),
+          });
+        } else if (draggedElement.handle === 'p2') {
+          onUpdateElement('wall', draggedElement.id, {
+            x2: snap(initial.x2 + dx),
+            y2: snap(initial.y2 + dy),
+          });
+        } else {
+          onUpdateElement('wall', draggedElement.id, {
+            x1: snap(initial.x + dx),
+            y1: snap(initial.y + dy),
+            x2: snap(initial.x2 + dx),
+            y2: snap(initial.y2 + dy),
+          });
+        }
       } else {
         onUpdateElement(draggedElement.type, draggedElement.id, {
           x: snap(initial.x + dx),
@@ -306,7 +332,8 @@ export const MapEditor: React.FC<MapEditorProps> = ({
   const handleElementClick = (
     e: React.MouseEvent,
     type: 'wall' | 'room' | 'door' | 'exit' | 'obstacle' | 'person',
-    data: any
+    data: any,
+    handle: 'p1' | 'p2' | 'body' = 'body'
   ) => {
     e.stopPropagation();
     if (activeTool === 'erase') {
@@ -316,11 +343,11 @@ export const MapEditor: React.FC<MapEditorProps> = ({
       }
     } else if (activeTool === 'select') {
       onSelectElement({ type, data } as SelectedElement);
-      // Start drag
       const world = screenToWorld(e.clientX, e.clientY);
       setDraggedElement({
         type,
         id: data.id,
+        handle,
         startX: world.x,
         startY: world.y,
         initialElemPos: {
@@ -333,48 +360,49 @@ export const MapEditor: React.FC<MapEditorProps> = ({
     }
   };
 
-  // Generate grid lines
-  const gridLines = [];
-  const minX = -14;
-  const maxX = 14;
-  const minY = -10;
-  const maxY = 10;
+  // Generate coordinate grid
+  const gridLines = useMemo(() => {
+    const lines = [];
+    const minX = -14;
+    const maxX = 14;
+    const minY = -10;
+    const maxY = 10;
 
-  for (let x = minX; x <= maxX; x += 1) {
-    const p1 = worldToSvg(x, minY);
-    const p2 = worldToSvg(x, maxY);
-    const isAxis = x === 0;
-    gridLines.push(
-      <line
-        key={`vx-${x}`}
-        x1={p1.x}
-        y1={p1.y}
-        x2={p2.x}
-        y2={p2.y}
-        stroke={isAxis ? '#94A3B8' : x % 2 === 0 ? '#E2E8F0' : '#F1F5F9'}
-        strokeWidth={isAxis ? 1.5 : 1}
-        strokeDasharray={isAxis ? undefined : x % 2 === 0 ? undefined : '2,2'}
-      />
-    );
-  }
+    for (let x = minX; x <= maxX; x += 1) {
+      const p1 = worldToSvg(x, minY);
+      const p2 = worldToSvg(x, maxY);
+      const isAxis = x === 0;
+      lines.push(
+        <line
+          key={`vx-${x}`}
+          x1={p1.x}
+          y1={p1.y}
+          x2={p2.x}
+          y2={p2.y}
+          stroke={isAxis ? '#94A3B8' : x % 2 === 0 ? '#E2E8F0' : '#F8FAFC'}
+          strokeWidth={isAxis ? 1.5 : 0.8}
+        />
+      );
+    }
 
-  for (let y = minY; y <= maxY; y += 1) {
-    const p1 = worldToSvg(minX, y);
-    const p2 = worldToSvg(maxX, y);
-    const isAxis = y === 0;
-    gridLines.push(
-      <line
-        key={`hy-${y}`}
-        x1={p1.x}
-        y1={p1.y}
-        x2={p2.x}
-        y2={p2.y}
-        stroke={isAxis ? '#94A3B8' : y % 2 === 0 ? '#E2E8F0' : '#F1F5F9'}
-        strokeWidth={isAxis ? 1.5 : 1}
-        strokeDasharray={isAxis ? undefined : y % 2 === 0 ? undefined : '2,2'}
-      />
-    );
-  }
+    for (let y = minY; y <= maxY; y += 1) {
+      const p1 = worldToSvg(minX, y);
+      const p2 = worldToSvg(maxX, y);
+      const isAxis = y === 0;
+      lines.push(
+        <line
+          key={`hy-${y}`}
+          x1={p1.x}
+          y1={p1.y}
+          x2={p2.x}
+          y2={p2.y}
+          stroke={isAxis ? '#94A3B8' : y % 2 === 0 ? '#E2E8F0' : '#F8FAFC'}
+          strokeWidth={isAxis ? 1.5 : 0.8}
+        />
+      );
+    }
+    return lines;
+  }, [worldToSvg]);
 
   return (
     <div className="relative w-full h-[540px] bg-white rounded-2xl overflow-hidden border border-[#E2E5E9] shadow-subtle select-none">
@@ -391,106 +419,174 @@ export const MapEditor: React.FC<MapEditorProps> = ({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
       >
-        {/* Clean white blueprint base */}
+        {/* Canvas background */}
         <rect x="0" y="0" width={viewWidth} height={viewHeight} fill="#FFFFFF" />
 
         {/* Coordinate Grid */}
         <g id="grid">{gridLines}</g>
 
-        {/* Room zones */}
+        {/* 1. ROOM ZONES — Centered exactly on room.x, room.y */}
         <g id="rooms">
-          {rooms.map(room => {
-            const topLeft = worldToSvg(room.x, room.y);
+          {rooms.map((room) => {
+            const center = worldToSvg(room.x, room.y);
             const isSelected = selectedElement?.data.id === room.id;
             const w = room.width * scale * zoom;
             const h = room.height * scale * zoom;
+            const labelWidth = Math.max(70, room.name.length * 6.5 + 16);
 
             return (
-              <g key={room.id} onClick={e => handleElementClick(e, 'room', room)}>
+              <g key={room.id} onClick={(e) => handleElementClick(e, 'room', room)}>
                 <rect
-                  x={topLeft.x}
-                  y={topLeft.y}
+                  x={center.x - w / 2}
+                  y={center.y - h / 2}
                   width={w}
                   height={h}
-                  fill="rgba(37, 99, 235, 0.04)"
-                  stroke={isSelected ? '#2563EB' : '#94A3B8'}
-                  strokeWidth={isSelected ? 2.5 : 1.5}
+                  fill={isSelected ? 'rgba(37, 99, 235, 0.08)' : 'rgba(241, 245, 249, 0.55)'}
+                  stroke={isSelected ? '#2563EB' : '#CBD5E1'}
+                  strokeWidth={isSelected ? 2 : 1}
                   strokeDasharray="4,4"
                   rx={4}
                   className="transition-colors hover:fill-blue-500/10 cursor-pointer"
                 />
-                <text
-                  x={topLeft.x + 8}
-                  y={topLeft.y + 16}
-                  fill="#475467"
-                  fontSize="11"
-                  fontFamily="sans-serif"
-                  fontWeight="600"
-                  pointerEvents="none"
-                >
-                  {room.name}
-                </text>
+
+                {/* Centered clean architectural room label */}
+                <g transform={`translate(${center.x}, ${center.y})`} pointerEvents="none">
+                  <rect
+                    x={-labelWidth / 2}
+                    y={-10}
+                    width={labelWidth}
+                    height={20}
+                    rx={4}
+                    fill="rgba(255, 255, 255, 0.9)"
+                    stroke="#E2E8F0"
+                    strokeWidth={1}
+                  />
+                  <text
+                    x={0}
+                    y={3.5}
+                    textAnchor="middle"
+                    fill="#334155"
+                    fontSize="10"
+                    fontFamily="sans-serif"
+                    fontWeight="600"
+                    letterSpacing="0.02em"
+                  >
+                    {room.name}
+                  </text>
+                </g>
               </g>
             );
           })}
         </g>
 
-        {/* Walls */}
+        {/* 2. WALLS — Segmented physically with openings for doors and exits */}
         <g id="walls">
-          {walls.map(wall => {
-            const p1 = worldToSvg(wall.x1, wall.y1);
-            const p2 = worldToSvg(wall.x2, wall.y2);
-            const isSelected = selectedElement?.data.id === wall.id;
+          {renderedWallSegments.map((seg, idx) => {
+            const p1 = worldToSvg(seg.x1, seg.y1);
+            const p2 = worldToSvg(seg.x2, seg.y2);
+            // Match parent wall ID if segmented
+            const parentWall = walls.find(
+              (w) => w.id === seg.id || seg.id.startsWith(w.id)
+            );
+            const isSelected = selectedElement?.data.id === (parentWall ? parentWall.id : seg.id);
 
             return (
-              <g key={wall.id} onClick={e => handleElementClick(e, 'wall', wall)}>
-                {/* Thick hit area */}
+              <g
+                key={`seg-${idx}-${seg.id}`}
+                onClick={(e) => handleElementClick(e, 'wall', parentWall || seg)}
+              >
+                {/* Hit Area */}
                 <line
                   x1={p1.x}
                   y1={p1.y}
                   x2={p2.x}
                   y2={p2.y}
                   stroke="transparent"
-                  strokeWidth={16}
+                  strokeWidth={18}
                   className="cursor-pointer"
                 />
-                {/* Architectural Wall Line */}
+                {/* Structural Solid Wall */}
                 <line
                   x1={p1.x}
                   y1={p1.y}
                   x2={p2.x}
                   y2={p2.y}
                   stroke={isSelected ? '#2563EB' : '#334155'}
-                  strokeWidth={isSelected ? 5.5 : 4}
+                  strokeWidth={isSelected ? 5 : 3.5}
                   strokeLinecap="round"
                   className="transition-all"
                 />
               </g>
             );
           })}
+
+          {/* Selected Wall Endpoint Drag Handles */}
+          {selectedElement?.type === 'wall' && (
+            <g>
+              {(() => {
+                const w = selectedElement.data as MapWall;
+                const p1 = worldToSvg(w.x1, w.y1);
+                const p2 = worldToSvg(w.x2, w.y2);
+                return (
+                  <>
+                    <circle
+                      cx={p1.x}
+                      cy={p1.y}
+                      r={6}
+                      fill="#2563EB"
+                      stroke="#FFFFFF"
+                      strokeWidth={2}
+                      className="cursor-move shadow-md"
+                      onMouseDown={(e) => handleElementClick(e, 'wall', w, 'p1')}
+                    />
+                    <circle
+                      cx={p2.x}
+                      cy={p2.y}
+                      r={6}
+                      fill="#2563EB"
+                      stroke="#FFFFFF"
+                      strokeWidth={2}
+                      className="cursor-move shadow-md"
+                      onMouseDown={(e) => handleElementClick(e, 'wall', w, 'p2')}
+                    />
+                  </>
+                );
+              })()}
+            </g>
+          )}
         </g>
 
-        {/* Doors */}
+        {/* 3. DOORS — Aligned dynamically with host wall angle */}
         <g id="doors">
-          {doors.map(door => {
-            const pos = worldToSvg(door.x, door.y);
+          {doors.map((door) => {
             const isSelected = selectedElement?.data.id === door.id;
-            const w = (door.width || 1.5) * scale * zoom;
+            const geom = computeDoorGeometry(door, walls);
+            const j1 = worldToSvg(geom.jamb1.x, geom.jamb1.y);
+            const j2 = worldToSvg(geom.jamb2.x, geom.jamb2.y);
+            const h = worldToSvg(geom.hinge.x, geom.hinge.y);
+            const leaf = worldToSvg(geom.leafTip.x, geom.leafTip.y);
+
+            const arcD = `M ${j2.x} ${j2.y} A ${(door.width || 1.5) * scale * zoom} ${(door.width || 1.5) * scale * zoom} 0 0 1 ${leaf.x} ${leaf.y}`;
 
             return (
-              <g key={door.id} onClick={e => handleElementClick(e, 'door', door)} className="cursor-pointer">
-                {/* Wall opening gap */}
+              <g
+                key={door.id}
+                onClick={(e) => handleElementClick(e, 'door', door)}
+                className="cursor-pointer"
+              >
+                {/* Architectural Threshold Line between jambs */}
                 <line
-                  x1={pos.x - w / 2}
-                  y1={pos.y}
-                  x2={pos.x + w / 2}
-                  y2={pos.y}
-                  stroke="#FFFFFF"
-                  strokeWidth={8}
+                  x1={j1.x}
+                  y1={j1.y}
+                  x2={j2.x}
+                  y2={j2.y}
+                  stroke="#94A3B8"
+                  strokeWidth={1.5}
+                  strokeDasharray="2,2"
                 />
-                {/* Architectural Door Swing Arc */}
+                {/* Swing Arc Path */}
                 <path
-                  d={`M ${pos.x - w / 2} ${pos.y} A ${w * 0.85} ${w * 0.85} 0 0 1 ${pos.x - w / 2 + w * 0.6} ${pos.y - w * 0.6}`}
+                  d={arcD}
                   fill="none"
                   stroke={isSelected ? '#2563EB' : '#94A3B8'}
                   strokeWidth={1.5}
@@ -498,37 +594,37 @@ export const MapEditor: React.FC<MapEditorProps> = ({
                 />
                 {/* Door Leaf */}
                 <line
-                  x1={pos.x - w / 2}
-                  y1={pos.y}
-                  x2={pos.x - w / 2 + w * 0.6}
-                  y2={pos.y - w * 0.6}
+                  x1={h.x}
+                  y1={h.y}
+                  x2={leaf.x}
+                  y2={leaf.y}
                   stroke={isSelected ? '#2563EB' : '#334155'}
                   strokeWidth={2.5}
                   strokeLinecap="round"
                 />
-                {/* Hinge point */}
-                <circle cx={pos.x - w / 2} cy={pos.y} r={3} fill={isSelected ? '#2563EB' : '#2563EB'} />
+                {/* Hinge Pin */}
+                <circle cx={h.x} cy={h.y} r={3.5} fill={isSelected ? '#2563EB' : '#0284C7'} />
               </g>
             );
           })}
         </g>
 
-        {/* Obstacles */}
+        {/* 4. OBSTACLES — Real Dimensions, Hazard Borders, Clear Label */}
         <g id="obstacles">
-          {obstacles.map(obs => {
+          {obstacles.map((obs) => {
             const pos = worldToSvg(obs.x, obs.y);
             const isSelected = selectedElement?.data.id === obs.id;
             const w = (obs.width || 1.6) * scale * zoom;
             const h = (obs.height || 1.2) * scale * zoom;
 
             return (
-              <g key={obs.id} onClick={e => handleElementClick(e, 'obstacle', obs)}>
+              <g key={obs.id} onClick={(e) => handleElementClick(e, 'obstacle', obs)}>
                 <rect
                   x={pos.x - w / 2}
                   y={pos.y - h / 2}
                   width={w}
                   height={h}
-                  fill="rgba(245, 158, 11, 0.15)"
+                  fill={isSelected ? 'rgba(245, 158, 11, 0.28)' : 'rgba(245, 158, 11, 0.16)'}
                   stroke={isSelected ? '#D97706' : '#F59E0B'}
                   strokeWidth={isSelected ? 2.5 : 1.5}
                   rx={3}
@@ -536,7 +632,7 @@ export const MapEditor: React.FC<MapEditorProps> = ({
                 />
                 <text
                   x={pos.x}
-                  y={pos.y + 3}
+                  y={pos.y + 3.5}
                   textAnchor="middle"
                   fill="#92400E"
                   fontSize="9.5"
@@ -551,25 +647,26 @@ export const MapEditor: React.FC<MapEditorProps> = ({
           })}
         </g>
 
-        {/* Exits with Smart Non-Clipping Labeling */}
+        {/* 5. EXITS — Positioned at Perimeter Openings with Clear Portals */}
         <g id="exits">
-          {exits.map(exit => {
+          {exits.map((exit) => {
             const pos = worldToSvg(exit.x, exit.y);
             const isSelected = selectedElement?.data.id === exit.id;
             const isEmergency = exit.type === 'emergency';
             const color = isEmergency ? '#16A34A' : '#0D9488';
 
-            // Smart label positioning: prevent clipping near viewport borders
-            const labelY = pos.y < 45 ? pos.y + 24 : pos.y - 18;
+            // Smart label positioning away from edges
+            const labelY = pos.y < 50 ? pos.y + 24 : pos.y - 18;
             const textAnchor = pos.x > viewWidth - 90 ? 'end' : pos.x < 90 ? 'start' : 'middle';
             const labelX = pos.x > viewWidth - 90 ? pos.x - 14 : pos.x < 90 ? pos.x + 14 : pos.x;
 
             return (
-              <g key={exit.id} onClick={e => handleElementClick(e, 'exit', exit)}>
+              <g key={exit.id} onClick={(e) => handleElementClick(e, 'exit', exit)}>
+                {/* Exit Portal Aura */}
                 <circle
                   cx={pos.x}
                   cy={pos.y}
-                  r={12}
+                  r={13}
                   fill={`${color}15`}
                   stroke={isSelected ? '#15803D' : color}
                   strokeWidth={isSelected ? 2.5 : 1.5}
@@ -581,9 +678,10 @@ export const MapEditor: React.FC<MapEditorProps> = ({
                   y={labelY}
                   textAnchor={textAnchor}
                   fill={color}
-                  fontSize="10.5"
+                  fontSize="10"
                   fontFamily="sans-serif"
                   fontWeight="bold"
+                  letterSpacing="0.04em"
                   pointerEvents="none"
                 >
                   {exit.name.toUpperCase()}
@@ -593,44 +691,63 @@ export const MapEditor: React.FC<MapEditorProps> = ({
           })}
         </g>
 
-        {/* People */}
+        {/* 6. PEOPLE — Collision-Aware Pill Label Placement */}
         <g id="people">
-          {people.map(person => {
+          {people.map((person) => {
             const pos = worldToSvg(person.x, person.y);
             const isSelected = selectedElement?.data.id === person.id;
+            const offset = labelOffsets.get(person.id) || { xOffset: 0, yOffset: 14, textAnchor: 'middle' };
+            const labelX = pos.x + offset.xOffset;
+            const labelY = pos.y + offset.yOffset;
+            const labelText = person.label || 'P';
+            const labelWidth = Math.max(22, labelText.length * 6.5 + 8);
 
             return (
-              <g key={person.id} onClick={e => handleElementClick(e, 'person', person)}>
+              <g key={person.id} onClick={(e) => handleElementClick(e, 'person', person)}>
+                {/* Person Pin Marker */}
                 <circle
                   cx={pos.x}
                   cy={pos.y}
-                  r={6.5}
+                  r={7}
                   fill="#2563EB"
                   stroke={isSelected ? '#1D4ED8' : '#93C5FD'}
                   strokeWidth={isSelected ? 2.5 : 1.5}
-                  className="cursor-pointer hover:scale-125 transition-transform shadow-xs"
+                  className="cursor-pointer hover:scale-125 transition-transform"
                 />
-                <circle cx={pos.x} cy={pos.y} r={2} fill="#FFFFFF" />
-                <text
-                  x={pos.x}
-                  y={pos.y + 14}
-                  textAnchor="middle"
-                  fill="#475467"
-                  fontSize="9"
-                  fontFamily="sans-serif"
-                  fontWeight="600"
-                  pointerEvents="none"
-                >
-                  {person.label || 'P'}
-                </text>
+                <circle cx={pos.x} cy={pos.y} r={2.5} fill="#FFFFFF" />
+
+                {/* Legible Collision-Aware Pill Label */}
+                <g transform={`translate(${labelX}, ${labelY})`} pointerEvents="none">
+                  <rect
+                    x={offset.textAnchor === 'start' ? -2 : offset.textAnchor === 'end' ? -labelWidth + 2 : -labelWidth / 2}
+                    y={-7}
+                    width={labelWidth}
+                    height={14}
+                    rx={3}
+                    fill="rgba(255, 255, 255, 0.9)"
+                    stroke="#E2E8F0"
+                    strokeWidth={0.8}
+                  />
+                  <text
+                    x={0}
+                    y={3}
+                    textAnchor={offset.textAnchor}
+                    fill="#334155"
+                    fontSize="9"
+                    fontFamily="sans-serif"
+                    fontWeight="600"
+                  >
+                    {labelText}
+                  </text>
+                </g>
               </g>
             );
           })}
         </g>
 
-        {/* Live Drawing Previews */}
+        {/* Live Drawing Preview for Wall Tool */}
         {activeTool === 'wall' && wallStart && (
-          <g>
+          <g pointerEvents="none">
             {(() => {
               const p1 = worldToSvg(wallStart.x, wallStart.y);
               const p2 = worldToSvg(cursorPos.x, cursorPos.y);
@@ -665,7 +782,7 @@ export const MapEditor: React.FC<MapEditorProps> = ({
         )}
       </svg>
 
-      {/* Small Compact Legend (WALL | DOOR | EXIT | PERSON | OBSTACLE) */}
+      {/* Blueprint Legend */}
       <div className="absolute top-3 right-3 px-3 py-1.5 rounded-lg bg-white/95 border border-[#E2E5E9] shadow-xs flex items-center space-x-3 text-[10px] font-sans font-semibold text-[#475467] pointer-events-none select-none">
         <div className="flex items-center space-x-1.5">
           <span className="w-3.5 h-1 bg-[#334155] rounded-xs inline-block" />
