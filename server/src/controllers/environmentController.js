@@ -288,6 +288,7 @@ export async function analyzeEnvironment(req, res, next) {
         analysisNotice: analysisResult.notice,
         hasExternalVision: analysisResult.isAiGenerated,
         isCandidate: true,
+        diagnostics: analysisResult.diagnostics || null,
         analyzedAt: new Date().toISOString()
       }
     });
@@ -295,6 +296,7 @@ export async function analyzeEnvironment(req, res, next) {
     res.json({
       success: true,
       message: analysisResult.notice,
+      diagnostics: analysisResult.diagnostics || null,
       isManualFallback: !analysisResult.isAiGenerated,
       data: updated
     });

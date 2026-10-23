@@ -29,6 +29,7 @@ export const UploadSpacePage: React.FC = () => {
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [extractedFrames, setExtractedFrames] = useState<ExtractedFrame[]>([]);
   const [noticeMessage, setNoticeMessage] = useState<string>('');
+  const [diagnostics, setDiagnostics] = useState<any>(null);
   const [createdEnvId, setCreatedEnvId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -179,6 +180,9 @@ export const UploadSpacePage: React.FC = () => {
         analyzedEnv.metadata?.analysisNotice ||
         'Candidate map generated. Please verify the space before simulation.';
       setNoticeMessage(notice);
+      if (analyzedEnv.metadata?.diagnostics) {
+        setDiagnostics(analyzedEnv.metadata.diagnostics);
+      }
 
       // Store frames in sessionStorage for reference panel in 2D editor
       try {
@@ -353,13 +357,42 @@ export const UploadSpacePage: React.FC = () => {
 
               {/* Simple Status Message */}
               {!analysisError && (
-                <div className="p-3.5 rounded-xl bg-[#EFF6FF] border border-[#BFDBFE] flex items-start gap-3">
-                  <Info className="w-4 h-4 text-[#2563EB] flex-shrink-0 mt-0.5" />
-                  <div className="text-xs text-[#1E40AF]">
-                    {currentStep === 'ready'
-                      ? (noticeMessage || 'Approximate map generated. Please verify before simulation.')
-                      : (stageDescription || 'Analyzing footage and extracting spatial boundaries...')}
+                <div className="p-3.5 rounded-xl bg-[#EFF6FF] border border-[#BFDBFE] flex flex-col gap-2.5">
+                  <div className="flex items-start gap-3">
+                    <Info className="w-4 h-4 text-[#2563EB] flex-shrink-0 mt-0.5" />
+                    <div className="text-xs text-[#1E40AF]">
+                      {currentStep === 'ready'
+                        ? (noticeMessage || 'Floor plan reconstruction complete. Please verify before simulation.')
+                        : (stageDescription || 'Analyzing footage and extracting spatial boundaries...')}
+                    </div>
                   </div>
+
+                  {diagnostics && currentStep === 'ready' && (
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1 pl-7">
+                      <span className="px-2 py-0.5 rounded-md bg-white border border-[#BFDBFE] text-[11px] font-semibold text-[#1E40AF]">
+                        {diagnostics.wallsDetected || 0} Walls
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md bg-white border border-[#BFDBFE] text-[11px] font-semibold text-[#1E40AF]">
+                        {diagnostics.roomsDetected || 0} Rooms
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md bg-white border border-[#BFDBFE] text-[11px] font-semibold text-[#1E40AF]">
+                        {diagnostics.doorsDetected || 0} Doors
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md bg-white border border-[#BFDBFE] text-[11px] font-semibold text-[#16A34A]">
+                        {diagnostics.exitsDetected || 0} Exits
+                      </span>
+                      {diagnostics.stairsDetected > 0 && (
+                        <span className="px-2 py-0.5 rounded-md bg-white border border-[#BFDBFE] text-[11px] font-semibold text-[#D97706]">
+                          {diagnostics.stairsDetected} Stairs
+                        </span>
+                      )}
+                      {diagnostics.qualityScore && (
+                        <span className="px-2 py-0.5 rounded-md bg-[#DCFCE7] border border-[#BBF7D0] text-[11px] font-bold text-[#16A34A]">
+                          {Math.round(diagnostics.qualityScore * 100)}% Confidence
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 

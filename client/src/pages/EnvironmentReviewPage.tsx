@@ -456,6 +456,52 @@ export const EnvironmentReviewPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Floor-Plan Vision Reconstruction Diagnostics */}
+        {environment?.metadata?.diagnostics && (
+          <div className="mt-3 p-3.5 rounded-2xl bg-white border border-[#E2E5E9] shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3 font-sans">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-[#EFF6FF] border border-[#BFDBFE] flex items-center justify-center flex-shrink-0">
+                <Sparkles className="w-4 h-4 text-[#2563EB]" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#172033]">
+                    Floor-Plan Image Reconstruction
+                  </span>
+                  {environment.metadata.diagnostics.qualityScore && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#DCFCE7] text-[#16A34A] border border-[#BBF7D0]">
+                      {Math.round(environment.metadata.diagnostics.qualityScore * 100)}% Confidence
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-[#667085] mt-0.5">
+                  {environment.metadata.diagnostics.notice || environment.metadata.analysisNotice || 'Actual structural walls, room boundaries, doors, and exits reconstructed from uploaded image.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center flex-wrap gap-1.5 self-stretch md:self-auto justify-start md:justify-end">
+              <span className="px-2 py-1 rounded-lg bg-[#F8FAFC] border border-[#E2E5E9] text-[11px] font-semibold text-[#334155]">
+                {walls.length} Walls
+              </span>
+              <span className="px-2 py-1 rounded-lg bg-[#F8FAFC] border border-[#E2E5E9] text-[11px] font-semibold text-[#334155]">
+                {rooms.length} Rooms
+              </span>
+              <span className="px-2 py-1 rounded-lg bg-[#F8FAFC] border border-[#E2E5E9] text-[11px] font-semibold text-[#334155]">
+                {doors.length} Doors
+              </span>
+              <span className="px-2 py-1 rounded-lg bg-[#F8FAFC] border border-[#E2E5E9] text-[11px] font-semibold text-[#16A34A]">
+                {exits.length} Exits
+              </span>
+              {environment.metadata.diagnostics.stairsDetected > 0 && (
+                <span className="px-2 py-1 rounded-lg bg-[#F8FAFC] border border-[#E2E5E9] text-[11px] font-semibold text-[#D97706]">
+                  {environment.metadata.diagnostics.stairsDetected} Stairs
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Quality & Validation Banner */}
         <div className="mt-3">
           {validationReport.errors.length > 0 ? (

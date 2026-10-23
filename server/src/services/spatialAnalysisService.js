@@ -334,13 +334,25 @@ Output pure JSON conforming strictly to this schema without markdown formatting:
   }
 }
 
+import { analyzeFloorPlanImageFile } from './floorPlanVisionEngine.js';
+
 /**
- * Main Spatial Analysis Service entrypoint
+ * Main Spatial Analysis Service entrypoint:
+ * Reconstructs real architectural geometry from uploaded floor-plan images
+ * using Computer Vision with diagnostics, quality metrics, and external vision support.
  */
 export async function analyzeSpatialEnvironment(env) {
   const envId = String(env._id || env.id || 'default');
   const framesDir = path.join(uploadsRoot, envId, 'frames');
   const originalDir = path.join(uploadsRoot, envId, 'original');
+
+  // Search original directory first (high-res source), then frames directory
+  let originalImageFiles = [];
+  if (fs.existsSync(originalDir)) {
+    originalImageFiles = fs.readdirSync(originalDir)
+      .filter(f => /\.(jpe?g|png|webp)$/i.test(f))
+      .map(f => path.join(originalDir, f));
+  }
 
   let frameFiles = [];
   if (fs.existsSync(framesDir)) {
@@ -348,25 +360,49 @@ export async function analyzeSpatialEnvironment(env) {
       .filter(f => /\.(jpe?g|png|webp)$/i.test(f))
       .map(f => path.join(framesDir, f));
   }
-  if (frameFiles.length === 0 && fs.existsSync(originalDir)) {
-    frameFiles = fs.readdirSync(originalDir)
-      .filter(f => /\.(jpe?g|png|webp)$/i.test(f))
-      .map(f => path.join(originalDir, f));
+
+  const allCandidateFiles = [...originalImageFiles, ...frameFiles];
+  console.log(`[SpatialAnalysis] Environment ${envId}: Found ${originalImageFiles.length} original image(s) and ${frameFiles.length} frame image(s).`);
+
+  // 1. If uploaded floor plan image files are present, run native Computer Vision engine
+  if (allCandidateFiles.length > 0) {
+    const primaryImageFile = originalImageFiles.length > 0 ? originalImageFiles[0] : frameFiles[0];
+    console.log(`[SpatialAnalysis] Analyzing floor-plan image via Computer Vision: ${primaryImageFile}`);
+
+    try {
+      const cvResult = await analyzeFloorPlanImageFile(primaryImageFile, env);
+      
+      // If Computer Vision successfully detected structural architectural elements
+      if (cvResult && cvResult.geometry && cvResult.geometry.walls && cvResult.geometry.walls.length >= 3) {
+        console.log(`[SpatialAnalysis] Computer Vision extraction successful for ${envId}: ` +
+          `${cvResult.geometry.walls.length} walls, ${cvResult.geometry.rooms.length} rooms, ` +
+          `${cvResult.geometry.doors.length} doors, ${cvResult.exits.length} exits, ` +
+          `${cvResult.obstacles.length} obstacles/stairs.`);
+        return cvResult;
+      } else if (cvResult && cvResult.isFallback) {
+        console.log(`[SpatialAnalysis] Low architectural confidence in image for ${envId}. Gracefully returning diagnostic workspace.`);
+        return {
+          ...cvResult,
+          notice: cvResult.notice || 'Floor plan image contained low structural confidence. Please use the 2D editor tools to review and add walls.'
+        };
+      }
+    } catch (cvErr) {
+      console.warn(`[SpatialAnalysis] Computer Vision engine notice: ${cvErr.message}. Checking auxiliary providers.`);
+    }
   }
 
-  console.log(`[SpatialAnalysis] Environment ${envId}: Found ${frameFiles.length} candidate frame image(s).`);
-
-  // Check external vision API key
+  // 2. Check external vision API key if configured
   const apiKey = process.env.GEMINI_API_KEY || process.env.VISION_API_KEY;
-  if (apiKey && frameFiles.length > 0) {
-    const aiResult = await callExternalVisionProvider(apiKey, frameFiles, env);
+  if (apiKey && allCandidateFiles.length > 0) {
+    const aiResult = await callExternalVisionProvider(apiKey, allCandidateFiles, env);
     if (aiResult) {
       return aiResult;
     }
   } else if (!apiKey) {
-    console.log('[SpatialAnalysis] No GEMINI_API_KEY / VISION_API_KEY provided; utilizing isolated deterministic candidate layout generator.');
+    console.log('[SpatialAnalysis] No GEMINI_API_KEY / VISION_API_KEY configured; completed local Computer Vision pass.');
   }
 
-  // Transparent candidate generation (Requirement 9 & 19)
-  return generateCandidateSpatialLayout(env, frameFiles);
+  // 3. Fallback only if no files or unresolvable structure
+  console.log('[SpatialAnalysis] Utilizing candidate layout generator as baseline fallback.');
+  return generateCandidateSpatialLayout(env, allCandidateFiles);
 }
