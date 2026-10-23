@@ -19,6 +19,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Trust proxy for secure cookies, https protocol resolution on Render/reverse proxies
+app.set('trust proxy', 1);
+
 // Middleware
 const allowedOrigins = [
   'https://previa-xr.vercel.app',
@@ -55,8 +58,21 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-environment-id'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-environment-id', 'Accept', 'X-Requested-With'],
 }));
+
+// Request logger for observability without exposing sensitive request bodies or secrets
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    if (!req.url.startsWith('/uploads') && req.url !== '/api/health') {
+      console.log(`[API] ${req.method} ${req.originalUrl} ${res.statusCode} (${duration}ms)`);
+    }
+  });
+  next();
+});
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 

@@ -241,49 +241,72 @@ Output pure JSON conforming strictly to this schema without markdown formatting:
     ];
 
     // Multi-frame association: attach up to 4 distinct keyframes
-    frameFiles.slice(0, 4).forEach((file) => {
+    const attachedCount = Math.min(frameFiles.length, 4);
+    for (let i = 0; i < attachedCount; i++) {
+      const file = frameFiles[i];
       if (fs.existsSync(file)) {
         const fileBuffer = fs.readFileSync(file);
         const base64Data = fileBuffer.toString('base64');
         const mimeType = file.endsWith('.png') ? 'image/png' : 'image/jpeg';
         parts.push({
-          inline_data: {
-            mime_type: mimeType,
+          inlineData: {
+            mimeType,
             data: base64Data
           }
         });
       }
-    });
+    }
+
+    console.log(`[SpatialAnalysis] Invoking Gemini Vision API with ${attachedCount} frame(s)...`);
 
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     const payload = {
       contents: [{ parts }],
       generationConfig: {
         temperature: 0.1,
-        response_mime_type: 'application/json'
+        responseMimeType: 'application/json'
       }
     };
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000);
 
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      signal: controller.signal
     });
+    clearTimeout(timeout);
 
     if (!response.ok) {
-      console.warn(`[SpatialAnalysis] External Vision API responded with ${response.status}`);
+      const errText = await response.text().catch(() => '');
+      console.warn(`[SpatialAnalysis] External Vision API responded with HTTP ${response.status}: ${errText.substring(0, 150)}`);
       return null;
     }
 
     const resJson = await response.json();
     const candidateText = resJson?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!candidateText) return null;
+    if (!candidateText) {
+      console.warn('[SpatialAnalysis] Gemini Vision API returned no candidate text.');
+      return null;
+    }
 
-    const parsed = JSON.parse(candidateText);
+    // Strip markdown code fences if present
+    const cleanedText = candidateText.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+    const parsed = JSON.parse(cleanedText);
 
     // Validate geometry strictly
-    if (!Array.isArray(parsed.walls) || parsed.walls.length < 3) return null;
-    if (!Array.isArray(parsed.exits) || parsed.exits.length < 1) return null;
+    if (!Array.isArray(parsed.walls) || parsed.walls.length < 3) {
+      console.warn('[SpatialAnalysis] Gemini Vision returned insufficient walls (<3), falling back to candidate geometry.');
+      return null;
+    }
+    if (!Array.isArray(parsed.exits) || parsed.exits.length < 1) {
+      console.warn('[SpatialAnalysis] Gemini Vision returned no exits (<1), falling back to candidate geometry.');
+      return null;
+    }
+
+    console.log(`[SpatialAnalysis] Gemini Vision spatial reconstruction successful (${parsed.walls.length} walls, ${parsed.exits.length} exits).`);
 
     return {
       geometry: {
@@ -331,6 +354,8 @@ export async function analyzeSpatialEnvironment(env) {
       .map(f => path.join(originalDir, f));
   }
 
+  console.log(`[SpatialAnalysis] Environment ${envId}: Found ${frameFiles.length} candidate frame image(s).`);
+
   // Check external vision API key
   const apiKey = process.env.GEMINI_API_KEY || process.env.VISION_API_KEY;
   if (apiKey && frameFiles.length > 0) {
@@ -338,6 +363,8 @@ export async function analyzeSpatialEnvironment(env) {
     if (aiResult) {
       return aiResult;
     }
+  } else if (!apiKey) {
+    console.log('[SpatialAnalysis] No GEMINI_API_KEY / VISION_API_KEY provided; utilizing isolated deterministic candidate layout generator.');
   }
 
   // Transparent candidate generation (Requirement 9 & 19)

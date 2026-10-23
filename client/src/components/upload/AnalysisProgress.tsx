@@ -1,19 +1,23 @@
 import React from 'react';
-import { Check, Loader2, Sparkles } from 'lucide-react';
+import { Check, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 
 export type AnalysisStage = 'upload' | 'extracting' | 'preparing' | 'ready';
 
 interface AnalysisProgressProps {
   currentStage: AnalysisStage;
   progressPercent: number;
+  stageDescription?: string;
+  isError?: boolean;
 }
 
 export const AnalysisProgress: React.FC<AnalysisProgressProps> = ({
   currentStage,
   progressPercent,
+  stageDescription,
+  isError = false,
 }) => {
   const steps: Array<{ id: AnalysisStage; num: string; label: string }> = [
-    { id: 'upload', num: '01', label: 'Uploading...' },
+    { id: 'upload', num: '01', label: 'Initializing...' },
     { id: 'extracting', num: '02', label: 'Extracting frames...' },
     { id: 'preparing', num: '03', label: 'Preparing map...' },
     { id: 'ready', num: '04', label: 'Ready.' },
@@ -36,8 +40,17 @@ export const AnalysisProgress: React.FC<AnalysisProgressProps> = ({
             <Sparkles className="w-5 h-5 text-[#2563EB]" />
             <span>Analyzing Your Space</span>
           </h2>
+          {stageDescription && (
+            <p className="text-xs text-[#667085] transition-all">
+              {stageDescription}
+            </p>
+          )}
         </div>
-        <span className="text-xl font-bold text-[#2563EB] font-mono">
+        <span
+          className={`text-xl font-bold font-mono ${
+            isError ? 'text-[#DC2626]' : 'text-[#2563EB]'
+          }`}
+        >
           {progressPercent}%
         </span>
       </div>
@@ -45,22 +58,27 @@ export const AnalysisProgress: React.FC<AnalysisProgressProps> = ({
       {/* Progress Bar */}
       <div className="w-full bg-[#F1F3F5] rounded-full h-2 overflow-hidden">
         <div
-          className="h-full bg-[#2563EB] transition-all duration-300 rounded-full"
-          style={{ width: `${progressPercent}%` }}
+          className={`h-full transition-all duration-300 rounded-full ${
+            isError ? 'bg-[#DC2626]' : 'bg-[#2563EB]'
+          }`}
+          style={{ width: `${Math.max(5, Math.min(100, progressPercent))}%` }}
         />
       </div>
 
       {/* 4 Steps Stepper */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {steps.map((step, idx) => {
-          const isDone = idx < currentIndex || (currentStage === 'ready' && idx === 3);
+          const isDone = idx < currentIndex || (currentStage === 'ready' && idx === 3 && !isError);
           const isCurrent = idx === currentIndex && currentStage !== 'ready';
+          const isFailed = isCurrent && isError;
 
           return (
             <div
               key={step.id}
               className={`p-3.5 rounded-xl border text-xs transition-all flex items-center space-x-3 ${
-                isDone
+                isFailed
+                  ? 'bg-[#FEF2F2] border-[#FECACA] text-[#DC2626] shadow-xs'
+                  : isDone
                   ? 'bg-[#F0FDF4] border-[#BBF7D0] text-[#16A34A]'
                   : isCurrent
                   ? 'bg-[#EFF6FF] border-[#BFDBFE] text-[#2563EB] shadow-xs'
@@ -70,14 +88,18 @@ export const AnalysisProgress: React.FC<AnalysisProgressProps> = ({
               {/* Stepper Indicator */}
               <div
                 className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${
-                  isDone
+                  isFailed
+                    ? 'bg-[#DC2626] text-white'
+                    : isDone
                     ? 'bg-[#16A34A] text-white'
                     : isCurrent
                     ? 'bg-[#2563EB] text-white'
                     : 'bg-[#E2E5E9] text-[#667085]'
                 }`}
               >
-                {isDone ? (
+                {isFailed ? (
+                  <AlertCircle className="w-3.5 h-3.5" />
+                ) : isDone ? (
                   <Check className="w-3.5 h-3.5 stroke-[3]" />
                 ) : isCurrent ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />

@@ -13,8 +13,9 @@ if (!fs.existsSync(uploadDir)) {
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const rawEnvId = req.params?.id || req.headers['x-environment-id'] || req.query?.environmentId || req.body?.environmentId;
-    const envId = rawEnvId ? String(rawEnvId).replace(/[^a-zA-Z0-9_-]/g, '_') : ('env_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7));
+    const raw = req.params?.id || req.headers['x-environment-id'] || req.query?.environmentId || req.body?.environmentId;
+    const isInvalidId = !raw || raw === 'undefined' || raw === 'null' || raw === '[object Object]';
+    const envId = !isInvalidId ? String(raw).replace(/[^a-zA-Z0-9_-]/g, '_') : ('env_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7));
     req.environmentId = envId;
 
     const envDir = path.join(uploadDir, envId);
@@ -40,15 +41,20 @@ const fileFilter = (req, file, cb) => {
     'video/mp4',
     'video/webm',
     'video/quicktime',
+    'video/x-m4v',
+    'video/ogg',
     'image/png',
     'image/jpeg',
     'image/jpg',
     'image/webp'
   ];
-  if (allowedMime.includes(file.mimetype)) {
+  const ext = path.extname(file.originalname || '').toLowerCase();
+  const allowedExts = ['.mp4', '.webm', '.mov', '.m4v', '.png', '.jpg', '.jpeg', '.webp'];
+
+  if (allowedMime.includes(file.mimetype) || allowedExts.includes(ext)) {
     cb(null, true);
   } else {
-    cb(new Error(`Unsupported file type: ${file.mimetype}. Allowed: MP4, WebM, MOV, PNG, JPG/JPEG`));
+    cb(new Error(`Unsupported file type: ${file.mimetype || 'unknown'} (${ext}). Allowed: MP4, WebM, MOV, PNG, JPG/JPEG, WebP`));
   }
 };
 
@@ -57,6 +63,6 @@ export const upload = multer({
   fileFilter,
   limits: {
     fileSize: 100 * 1024 * 1024, // 100 MB max per file
-    files: 20 // max 20 files
+    files: 30 // max 30 files
   }
 });

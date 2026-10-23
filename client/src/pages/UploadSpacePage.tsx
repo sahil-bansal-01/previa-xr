@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileDropzone } from '../components/upload/FileDropzone';
 import { AnalysisProgress, AnalysisStage } from '../components/upload/AnalysisProgress';
@@ -13,6 +13,7 @@ import {
   ArrowRight,
   Info,
   Compass,
+  RotateCcw,
 } from 'lucide-react';
 
 export const UploadSpacePage: React.FC = () => {
@@ -23,15 +24,23 @@ export const UploadSpacePage: React.FC = () => {
   const [environmentName, setEnvironmentName] = useState<string>('My Space');
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [currentStep, setCurrentStep] = useState<AnalysisStage>('upload');
+  const [progressPercent, setProgressPercent] = useState<number>(10);
+  const [stageDescription, setStageDescription] = useState<string>('');
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [extractedFrames, setExtractedFrames] = useState<ExtractedFrame[]>([]);
   const [noticeMessage, setNoticeMessage] = useState<string>('');
   const [createdEnvId, setCreatedEnvId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const isVideo = files.length > 0 && files[0].type.startsWith('video/');
+  const isProcessingRef = useRef<boolean>(false);
+
+  const isVideo =
+    files.length > 0 &&
+    (files[0].type.startsWith('video/') || /\.(mp4|webm|mov|m4v)$/i.test(files[0].name));
 
   const handleFilesSelected = (newFiles: File[]) => {
     setErrorMsg(null);
+    setAnalysisError(null);
     setFiles(newFiles);
     if (newFiles.length > 0) {
       const raw = newFiles[0].name.split('.')[0];
@@ -49,57 +58,73 @@ export const UploadSpacePage: React.FC = () => {
   };
 
   const handleStartAnalysis = async () => {
+    if (isProcessingRef.current) return;
     if (files.length === 0) {
       setErrorMsg('Please select at least one walkthrough video or floor images.');
       return;
     }
 
     try {
+      isProcessingRef.current = true;
       setIsAnalyzing(true);
+      setAnalysisError(null);
       setErrorMsg(null);
 
       // Auto login in demo mode if unauthenticated
       if (!isAuthenticated) {
+        setStageDescription('Connecting session to PREVIA XR service...');
         try {
           await demoLogin();
-        } catch {
-          // Continue regardless
+        } catch (authErr) {
+          console.warn('Demo login warning (continuing):', authErr);
         }
       }
 
-      // Step 1: Create unique environment and store original video/images
+      // Step 1: Initialize environment on backend
       setCurrentStep('upload');
+      setProgressPercent(15);
+      setStageDescription('Initializing environment record on backend...');
+
       const sourceType = isVideo ? 'video' : 'images';
       const createdEnv = await environmentService.createEnvironment({
         name: environmentName.trim() || 'My Space',
         sourceType,
       });
-      const envId = createdEnv._id;
+
+      const envId = createdEnv?._id || createdEnv?.id;
+      if (!envId) {
+        throw new Error('Backend failed to return a valid environment identifier. Please try again.');
+      }
       setCreatedEnvId(envId);
+      setProgressPercent(25);
 
-      // Store original files under server/uploads/<environmentId>/original/
-      await environmentService.uploadFiles(files, envId, 'original');
-
-      // Step 2: Extract representative frames (beginning, several middle, end)
+      // Step 2: Extract representative keyframes
       setCurrentStep('extracting');
+      setStageDescription('Extracting spatial frames from media...');
       let frames: ExtractedFrame[] = [];
 
       if (isVideo) {
         try {
-          const extraction = await extractVideoFrames(files[0], 10);
+          const extraction = await extractVideoFrames(files[0], 10, (extractPercent) => {
+            // Frame extraction maps from 25% to 55%
+            setProgressPercent(25 + Math.round(extractPercent * 0.3));
+            setStageDescription(`Extracting spatial frames (${extractPercent}%)...`);
+          });
           frames = extraction.frames;
         } catch (frameErr: any) {
           console.warn('Browser video frame extraction notice:', frameErr);
-          // Non-fatal: Proceed to spatial analysis even if browser cannot render client-side canvas frames
         }
       } else {
+        setStageDescription('Generating thumbnails from floor images...');
         frames = await extractImageThumbnails(files);
+        setProgressPercent(55);
       }
 
       setExtractedFrames(frames);
 
-      // Store extracted frames under server/uploads/<environmentId>/frames/
+      // Store extracted frames on server under /uploads/<environmentId>/frames/
       if (frames.length > 0) {
+        setStageDescription('Uploading keyframe perspectives to analysis service...');
         try {
           const frameBlobs = frames
             .filter(f => Boolean(f.imageData))
@@ -114,15 +139,42 @@ export const UploadSpacePage: React.FC = () => {
               }
               return new Blob([array], { type: mime });
             });
-          await environmentService.uploadFiles(frameBlobs, envId, 'frame');
-        } catch (frameUploadErr) {
-          console.warn('Frame storage notice:', frameUploadErr);
+
+          await environmentService.uploadFiles(frameBlobs, envId, 'frame', (uploadPercent) => {
+            // Frame upload maps from 55% to 75%
+            setProgressPercent(55 + Math.round(uploadPercent * 0.2));
+            setStageDescription(`Uploading keyframe perspectives (${uploadPercent}%)...`);
+          });
+        } catch (frameUploadErr: any) {
+          console.warn('Keyframe upload warning:', frameUploadErr);
         }
       }
 
-      // Step 3: Analyze spatial content and generate candidate geometry for this specific environment
+      // For floor images, upload the original images so server has complete source files
+      if (!isVideo && files.length > 0) {
+        setStageDescription('Storing original floor images...');
+        try {
+          await environmentService.uploadFiles(files, envId, 'original');
+        } catch (origUploadErr: any) {
+          console.warn('Original image storage warning:', origUploadErr);
+        }
+      }
+
+      // For videos: if file size is reasonable (<= 25MB), upload original in background without blocking
+      if (isVideo && files[0].size <= 25 * 1024 * 1024) {
+        environmentService.uploadFiles(files, envId, 'original', undefined, 60000).catch(bgErr => {
+          console.warn('Non-blocking video archive warning:', bgErr.message);
+        });
+      }
+
+      // Step 3: Analyze spatial content and generate candidate geometry
       setCurrentStep('preparing');
+      setProgressPercent(80);
+      setStageDescription('Synthesizing candidate walls, doorways, and exit paths...');
+
       const analyzedEnv = await environmentService.analyzeEnvironment(envId);
+      setProgressPercent(95);
+
       const notice =
         analyzedEnv.metadata?.analysisNotice ||
         'Candidate map generated. Please verify the space before simulation.';
@@ -135,11 +187,19 @@ export const UploadSpacePage: React.FC = () => {
         console.warn('SessionStorage quota exceeded for frames:', storageErr);
       }
 
+      // Step 4: Ready (ONLY reaches 100% on confirmed success)
       setCurrentStep('ready');
+      setProgressPercent(100);
+      setStageDescription('Candidate map generated. Please verify walls, doors, and exits before simulation.');
     } catch (err: any) {
       console.error('Error during analysis:', err);
-      setErrorMsg(err.message || 'Failed to process environment upload. Please try again.');
-      setIsAnalyzing(false);
+      const message =
+        err.message ||
+        'Failed to process environment upload. The server may be waking up from sleep on Render, or check your connection.';
+      setAnalysisError(message);
+      setErrorMsg(message);
+    } finally {
+      isProcessingRef.current = false;
     }
   };
 
@@ -181,7 +241,7 @@ export const UploadSpacePage: React.FC = () => {
 
         {/* Main Content Card */}
         <div className="rounded-2xl bg-white border border-[#E2E5E9] p-6 md:p-8 shadow-elevated relative">
-          {errorMsg && (
+          {errorMsg && !isAnalyzing && (
             <div className="mb-6 p-4 rounded-xl bg-[#FEF2F2] border border-[#FECACA] text-[#DC2626] text-sm flex items-center gap-3">
               <AlertTriangle className="w-5 h-5 text-[#DC2626] flex-shrink-0" />
               <span>{errorMsg}</span>
@@ -232,7 +292,7 @@ export const UploadSpacePage: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleStartAnalysis}
-                  disabled={files.length === 0}
+                  disabled={files.length === 0 || isAnalyzing}
                   className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm tracking-normal flex items-center justify-center space-x-2 transition-all shadow-xs hover:shadow-md order-1 sm:order-2"
                 >
                   <span>ANALYZE SPACE</span>
@@ -246,16 +306,43 @@ export const UploadSpacePage: React.FC = () => {
               {/* 4-Stage Progress Stepper */}
               <AnalysisProgress
                 currentStage={currentStep}
-                progressPercent={
-                  currentStep === 'ready'
-                    ? 100
-                    : currentStep === 'preparing'
-                    ? 75
-                    : currentStep === 'extracting'
-                    ? 45
-                    : 15
-                }
+                progressPercent={progressPercent}
+                stageDescription={stageDescription}
+                isError={Boolean(analysisError)}
               />
+
+              {/* In-view Error Reporting & Retry Controls */}
+              {analysisError && (
+                <div className="p-4 rounded-xl bg-[#FEF2F2] border border-[#FECACA] space-y-3">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-[#DC2626] flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-[#991B1B]">
+                      <p className="font-semibold">Analysis encountered an issue</p>
+                      <p className="text-xs text-[#DC2626] mt-0.5 leading-relaxed">{analysisError}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={handleStartAnalysis}
+                      className="px-4 py-2 rounded-lg bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Retry Analysis</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAnalyzing(false);
+                        setAnalysisError(null);
+                      }}
+                      className="px-4 py-2 rounded-lg bg-white border border-[#CBD5E1] hover:bg-[#F8FAFC] text-[#475467] text-xs font-medium transition-all"
+                    >
+                      Change Media / Back to Upload
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Extracted Frame Thumbnails */}
               {extractedFrames.length > 0 && (
@@ -265,17 +352,19 @@ export const UploadSpacePage: React.FC = () => {
               )}
 
               {/* Simple Status Message */}
-              <div className="p-3.5 rounded-xl bg-[#EFF6FF] border border-[#BFDBFE] flex items-start gap-3">
-                <Info className="w-4 h-4 text-[#2563EB] flex-shrink-0 mt-0.5" />
-                <div className="text-xs text-[#1E40AF]">
-                  {currentStep === 'ready'
-                    ? (noticeMessage || 'Approximate map generated. Please verify before simulation.')
-                    : 'Analyzing walkthrough footage and extracting spatial boundaries...'}
+              {!analysisError && (
+                <div className="p-3.5 rounded-xl bg-[#EFF6FF] border border-[#BFDBFE] flex items-start gap-3">
+                  <Info className="w-4 h-4 text-[#2563EB] flex-shrink-0 mt-0.5" />
+                  <div className="text-xs text-[#1E40AF]">
+                    {currentStep === 'ready'
+                      ? (noticeMessage || 'Approximate map generated. Please verify before simulation.')
+                      : (stageDescription || 'Analyzing footage and extracting spatial boundaries...')}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Ready State CTA */}
-              {currentStep === 'ready' && (
+              {/* Ready State CTA - only when genuinely completed */}
+              {currentStep === 'ready' && !analysisError && (
                 <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[#E2E5E9]">
                   <div className="flex items-center gap-2 text-[#16A34A] text-xs font-medium">
                     <CheckCircle2 className="w-4 h-4" />

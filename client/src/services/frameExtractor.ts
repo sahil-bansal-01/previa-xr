@@ -158,9 +158,12 @@ function seekToTime(video: HTMLVideoElement, time: number): Promise<void> {
       video.removeEventListener('error', onError);
     };
 
+    let timer: any = null;
+
     const onSeeked = () => {
       if (!settled) {
         settled = true;
+        if (timer) clearTimeout(timer);
         cleanup();
         resolve();
       }
@@ -169,6 +172,7 @@ function seekToTime(video: HTMLVideoElement, time: number): Promise<void> {
     const onError = () => {
       if (!settled) {
         settled = true;
+        if (timer) clearTimeout(timer);
         cleanup();
         resolve();
       }
@@ -178,16 +182,25 @@ function seekToTime(video: HTMLVideoElement, time: number): Promise<void> {
     video.addEventListener('error', onError);
 
     // Safety timeout in case seeked doesn't fire
-    const timer = setTimeout(() => {
+    timer = setTimeout(() => {
       if (!settled) {
         settled = true;
         cleanup();
         resolve();
       }
-    }, 2500);
+    }, 2000);
 
     const safeDuration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 10;
     const safeTime = Math.max(0, Math.min(time, safeDuration - 0.1));
+
+    if (Math.abs(video.currentTime - safeTime) < 0.05) {
+      settled = true;
+      if (timer) clearTimeout(timer);
+      cleanup();
+      resolve();
+      return;
+    }
+
     video.currentTime = safeTime;
   });
 }

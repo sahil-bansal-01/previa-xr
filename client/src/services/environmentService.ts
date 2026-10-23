@@ -31,65 +31,110 @@ export interface UploadFilesResponse {
 }
 
 export const environmentService = {
-  async uploadFiles(
+  uploadFiles(
     files: (File | Blob)[],
     environmentId?: string,
-    subfolderType: 'original' | 'frame' = 'original'
+    subfolderType: 'original' | 'frame' = 'original',
+    onProgress?: (percent: number) => void,
+    timeoutMs = 60000
   ): Promise<UploadFilesResponse> {
-    const formData = new FormData();
-    files.forEach((f, idx) => {
-      if (f instanceof File) {
-        formData.append('files', f);
-      } else {
-        const ext = f.type === 'image/png' ? 'png' : 'jpg';
-        formData.append('files', f, `frame_${idx}_${Date.now()}.${ext}`);
-      }
-    });
-
-    const token = localStorage.getItem('previa_token');
-    const headers: HeadersInit = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    if (environmentId) {
-      headers['x-environment-id'] = environmentId;
-    }
-
-    const queryParams = new URLSearchParams();
-    if (environmentId) queryParams.set('environmentId', environmentId);
-    queryParams.set('type', subfolderType);
-
-    const endpoint = environmentId
-      ? `/environments/${environmentId}/upload?${queryParams.toString()}`
-      : `/environments/upload?${queryParams.toString()}`;
-
-    const url = formatEndpointUrl(endpoint);
-
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers,
-        body: formData,
+    return new Promise((resolve, reject) => {
+      const formData = new FormData();
+      files.forEach((f, idx) => {
+        if (f instanceof File) {
+          formData.append('files', f);
+        } else {
+          const ext = f.type === 'image/png' ? 'png' : 'jpg';
+          formData.append('files', f, `frame_${idx}_${Date.now()}.${ext}`);
+        }
       });
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: res.statusText }));
-        throw new Error(err.message || `File upload failed with status ${res.status}`);
+      const cleanEnvId =
+        environmentId && environmentId !== 'undefined' && environmentId !== 'null'
+          ? String(environmentId).trim()
+          : undefined;
+
+      const queryParams = new URLSearchParams();
+      if (cleanEnvId) queryParams.set('environmentId', cleanEnvId);
+      queryParams.set('type', subfolderType);
+
+      const endpoint = cleanEnvId
+        ? `/environments/${cleanEnvId}/upload?${queryParams.toString()}`
+        : `/environments/upload?${queryParams.toString()}`;
+
+      const url = formatEndpointUrl(endpoint);
+      const xhr = new XMLHttpRequest();
+
+      xhr.open('POST', url, true);
+      xhr.timeout = timeoutMs;
+
+      const token = localStorage.getItem('previa_token');
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
+      if (cleanEnvId) {
+        xhr.setRequestHeader('x-environment-id', cleanEnvId);
       }
 
-      return res.json();
-    } catch (err: any) {
-      if (err?.name === 'TypeError' && err?.message?.toLowerCase().includes('fetch')) {
-        throw new Error(
-          'Unable to reach backend server for upload. The server may be waking up from sleep on Render, or check your connection.'
-        );
+      if (onProgress && xhr.upload) {
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable && event.total > 0) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            onProgress(percent);
+          }
+        };
       }
-      throw err;
-    }
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const json = JSON.parse(xhr.responseText);
+            resolve(json);
+          } catch {
+            resolve({
+              success: true,
+              message: 'Files uploaded successfully.',
+              files: [],
+            });
+          }
+        } else {
+          let errMsg = `Upload failed with status ${xhr.status}`;
+          try {
+            const errorData = JSON.parse(xhr.responseText);
+            errMsg = errorData.message || errMsg;
+          } catch {
+            if (xhr.status === 413) {
+              errMsg = 'Uploaded media exceeds the server maximum upload limit (100 MB).';
+            } else if (xhr.status === 504) {
+              errMsg = 'Server upload gateway timed out. The backend on Render may be busy or waking up. Please retry.';
+            }
+          }
+          reject(new Error(errMsg));
+        }
+      };
+
+      xhr.onerror = () => {
+        reject(
+          new Error(
+            'Unable to reach backend server for upload. The server may be waking up from sleep on Render (~30-50s) or check your connection.'
+          )
+        );
+      };
+
+      xhr.ontimeout = () => {
+        reject(
+          new Error(
+            `Upload timed out after ${Math.round(timeoutMs / 1000)}s. Please check your connection or try smaller files.`
+          )
+        );
+      };
+
+      xhr.send(formData);
+    });
   },
 
   async createEnvironment(envData: Partial<Environment>): Promise<Environment> {
-    const res = await api.post<SingleEnvironmentResponse>('/environments', envData);
+    const res = await api.post<SingleEnvironmentResponse>('/environments', envData, 35000);
     return res.data;
   },
 
@@ -99,26 +144,31 @@ export const environmentService = {
   },
 
   async getEnvironmentById(id: string): Promise<Environment> {
-    const res = await api.get<SingleEnvironmentResponse>(`/environments/${id}`);
+    const cleanId = String(id).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const res = await api.get<SingleEnvironmentResponse>(`/environments/${cleanId}`);
     return res.data;
   },
 
   async updateEnvironment(id: string, updates: Partial<Environment>): Promise<Environment> {
-    const res = await api.put<SingleEnvironmentResponse>(`/environments/${id}`, updates);
+    const cleanId = String(id).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const res = await api.put<SingleEnvironmentResponse>(`/environments/${cleanId}`, updates);
     return res.data;
   },
 
   async deleteEnvironment(id: string): Promise<{ success: boolean; data: any }> {
-    return api.delete<{ success: boolean; data: any }>(`/environments/${id}`);
+    const cleanId = String(id).replace(/[^a-zA-Z0-9_-]/g, '_');
+    return api.delete<{ success: boolean; data: any }>(`/environments/${cleanId}`);
   },
 
   async analyzeEnvironment(id: string): Promise<Environment> {
-    const res = await api.post<SingleEnvironmentResponse>(`/environments/${id}/analyze`);
+    const cleanId = String(id).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const res = await api.post<SingleEnvironmentResponse>(`/environments/${cleanId}/analyze`, undefined, 45000);
     return res.data;
   },
 
   async confirmEnvironment(id: string): Promise<Environment> {
-    const res = await api.post<SingleEnvironmentResponse>(`/environments/${id}/confirm`);
+    const cleanId = String(id).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const res = await api.post<SingleEnvironmentResponse>(`/environments/${cleanId}/confirm`, undefined, 35000);
     return res.data;
   },
 };

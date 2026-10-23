@@ -1,5 +1,12 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { EnvironmentModel } from '../models/Environment.js';
 import { analyzeSpatialEnvironment } from '../services/spatialAnalysisService.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadsRoot = path.join(__dirname, '../../uploads');
 
 // Upload files handler
 export async function uploadFiles(req, res, next) {
@@ -9,8 +16,20 @@ export async function uploadFiles(req, res, next) {
       return res.status(400).json({ error: true, message: 'No files were uploaded.' });
     }
 
-    const envId = String(req.environmentId || req.params?.id || req.headers['x-environment-id'] || req.query?.environmentId || 'default');
+    const rawId = req.environmentId || req.params?.id || req.headers['x-environment-id'] || req.query?.environmentId;
+    const isInvalid = !rawId || rawId === 'undefined' || rawId === 'null' || rawId === '[object Object]';
+    const envId = isInvalid ? 'default' : String(rawId);
     const subfolder = req.query?.type === 'frame' ? 'frames' : 'original';
+
+    const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const host = req.get('host') || 'localhost:5000';
+    // Ensure HTTPS in production or behind reverse proxy
+    const isSecure = proto === 'https' || host.includes('render.com') || host.includes('vercel.app');
+    const baseUrl = process.env.API_BASE_URL || `${isSecure ? 'https' : proto}://${host}`;
+
+    const totalBytes = files.reduce((acc, f) => acc + (f.size || 0), 0);
+    console.log(`[Upload] Received ${files.length} file(s) for environment ${envId} into subfolder "${subfolder}" (${Math.round(totalBytes / 1024)} KB)`);
+
     const uploadedDetails = files.map(f => ({
       originalName: f.originalname,
       filename: f.filename,
@@ -32,7 +51,6 @@ export async function uploadFiles(req, res, next) {
         });
       } else if (subfolder === 'frames') {
         const existingFrames = env.metadata?.extractedFrames || [];
-        const baseUrl = process.env.API_BASE_URL || `${req.protocol}://${req.get('host')}`;
         const newFrames = [
           ...existingFrames,
           ...uploadedDetails.map((f, idx) => ({
@@ -221,6 +239,18 @@ export async function deleteEnvironment(req, res, next) {
       return res.status(404).json({ error: true, message: 'Environment not found.' });
     }
 
+    // Clean up temporary and uploaded assets for this environment on disk
+    try {
+      const sanitizedId = String(id).replace(/[^a-zA-Z0-9_-]/g, '_');
+      const targetDir = path.join(uploadsRoot, sanitizedId);
+      if (fs.existsSync(targetDir)) {
+        fs.rmSync(targetDir, { recursive: true, force: true });
+        console.log(`[Environment] Cleaned up temporary uploaded files on disk for environment ${id}`);
+      }
+    } catch (cleanupErr) {
+      console.warn(`[Environment] Non-fatal cleanup warning for environment ${id}:`, cleanupErr.message);
+    }
+
     res.json({
       success: true,
       message: 'Environment deleted successfully.',
@@ -239,6 +269,8 @@ export async function analyzeEnvironment(req, res, next) {
     if (!env) {
       return res.status(404).json({ error: true, message: 'Environment not found.' });
     }
+
+    console.log(`[SpatialAnalysis] Starting spatial analysis for environment ${id} (${env.name})`);
 
     // Call real spatial analysis service abstraction
     const analysisResult = await analyzeSpatialEnvironment(env);
