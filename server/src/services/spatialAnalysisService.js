@@ -24,7 +24,7 @@ function hashString(str) {
  * and NEVER silently assigns the campus demo layout.
  */
 export function generateCandidateSpatialLayout(env, frameFiles = []) {
-  const envId = env._id || env.id || 'env_default';
+  const envId = String(env._id || env.id || 'env_default');
   const envName = env.name || 'Custom Space';
 
   // Compute unique seed from environment ID, name, source files, and frame list
@@ -315,7 +315,7 @@ Output pure JSON conforming strictly to this schema without markdown formatting:
  * Main Spatial Analysis Service entrypoint
  */
 export async function analyzeSpatialEnvironment(env) {
-  const envId = env._id || env.id;
+  const envId = String(env._id || env.id || 'default');
   const framesDir = path.join(uploadsRoot, envId, 'frames');
   const originalDir = path.join(uploadsRoot, envId, 'original');
 

@@ -20,9 +20,42 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
+const allowedOrigins = [
+  'https://previa-xr.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:5000',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  process.env.CLIENT_URL,
+].filter(Boolean);
+
 app.use(cors({
-  origin: '*', // Allow frontend dev server
+  origin: (origin, callback) => {
+    // Allow non-browser requests (mobile, server-to-server, curl)
+    if (!origin) return callback(null, true);
+    
+    try {
+      const hostname = new URL(origin).hostname;
+      if (
+        allowedOrigins.includes(origin) ||
+        hostname.endsWith('.vercel.app') ||
+        hostname === 'localhost' ||
+        hostname === '127.0.0.1' ||
+        process.env.NODE_ENV !== 'production'
+      ) {
+        return callback(null, origin);
+      }
+    } catch {
+      // In case URL parsing fails, check direct array
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, origin);
+      }
+    }
+    return callback(null, origin);
+  },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-environment-id'],
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));

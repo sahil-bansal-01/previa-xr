@@ -85,8 +85,13 @@ export const UploadSpacePage: React.FC = () => {
       let frames: ExtractedFrame[] = [];
 
       if (isVideo) {
-        const extraction = await extractVideoFrames(files[0], 10);
-        frames = extraction.frames;
+        try {
+          const extraction = await extractVideoFrames(files[0], 10);
+          frames = extraction.frames;
+        } catch (frameErr: any) {
+          console.warn('Browser video frame extraction notice:', frameErr);
+          // Non-fatal: Proceed to spatial analysis even if browser cannot render client-side canvas frames
+        }
       } else {
         frames = await extractImageThumbnails(files);
       }

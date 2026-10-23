@@ -12,7 +12,7 @@ export interface FrameExtractionResult {
 }
 
 /**
- * Extracts 8-12 representative frames from a video file completely client-side
+ * Extracts representative frames from a video file completely client-side
  * using HTMLVideoElement and Canvas, with zero ffmpeg dependency.
  */
 export async function extractVideoFrames(
@@ -23,17 +23,42 @@ export async function extractVideoFrames(
   return new Promise((resolve, reject) => {
     const video = document.createElement('video');
     const objectUrl = URL.createObjectURL(file);
+    let isCleanedUp = false;
+
+    const cleanup = () => {
+      if (isCleanedUp) return;
+      isCleanedUp = true;
+      try {
+        video.pause();
+        video.removeAttribute('src');
+        video.load();
+      } catch {
+        // ignore
+      }
+      try {
+        URL.revokeObjectURL(objectUrl);
+      } catch {
+        // ignore
+      }
+    };
+
     video.src = objectUrl;
     video.muted = true;
     video.playsInline = true;
-    video.crossOrigin = 'anonymous';
+    video.preload = 'auto';
 
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-
     const frames: ExtractedFrame[] = [];
 
+    // Timeout safety for metadata load
+    const metadataTimeout = setTimeout(() => {
+      cleanup();
+      reject(new Error('Video metadata load timed out. Your browser may not support this video format or codec.'));
+    }, 12000);
+
     video.onloadedmetadata = async () => {
+      clearTimeout(metadataTimeout);
       const duration = video.duration || 1;
       const targetWidth = Math.min(video.videoWidth || 640, 640);
       const scale = targetWidth / (video.videoWidth || 1);
@@ -66,15 +91,15 @@ export async function extractVideoFrames(
             let isRedundant = false;
             if (prevPixelData && frames.length >= 3 && i < timestamps.length - 1) {
               let diffCount = 0;
-              const step = 32; // sample every 32nd pixel for speed
-              for (let p = 0; p < currentPixels.length; p += step * 4) {
+              const sampleStep = 32; // sample every 32nd pixel for speed
+              for (let p = 0; p < currentPixels.length; p += sampleStep * 4) {
                 const diff =
                   Math.abs(currentPixels[p] - prevPixelData[p]) +
                   Math.abs(currentPixels[p + 1] - prevPixelData[p + 1]) +
                   Math.abs(currentPixels[p + 2] - prevPixelData[p + 2]);
                 if (diff > 45) diffCount++;
               }
-              const sampleSize = currentPixels.length / (step * 4);
+              const sampleSize = currentPixels.length / (sampleStep * 4);
               if (diffCount / sampleSize < 0.03) {
                 // Less than 3% significant pixel change — redundant static frame
                 isRedundant = true;
@@ -97,7 +122,7 @@ export async function extractVideoFrames(
           }
         }
 
-        URL.revokeObjectURL(objectUrl);
+        cleanup();
         resolve({
           frames,
           duration,
@@ -105,26 +130,65 @@ export async function extractVideoFrames(
           height: targetHeight,
         });
       } catch (err) {
-        URL.revokeObjectURL(objectUrl);
+        cleanup();
         reject(err);
       }
     };
 
-    video.onerror = (e) => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error('Failed to load video file for frame extraction.'));
+    video.onerror = () => {
+      clearTimeout(metadataTimeout);
+      cleanup();
+      reject(new Error('Failed to load video file. Please ensure the video format is supported (MP4/WebM/MOV).'));
     };
+
+    try {
+      video.load();
+    } catch {
+      // ignore
+    }
   });
 }
 
 function seekToTime(video: HTMLVideoElement, time: number): Promise<void> {
   return new Promise((resolve) => {
-    const onSeeked = () => {
+    let settled = false;
+
+    const cleanup = () => {
       video.removeEventListener('seeked', onSeeked);
-      resolve();
+      video.removeEventListener('error', onError);
     };
+
+    const onSeeked = () => {
+      if (!settled) {
+        settled = true;
+        cleanup();
+        resolve();
+      }
+    };
+
+    const onError = () => {
+      if (!settled) {
+        settled = true;
+        cleanup();
+        resolve();
+      }
+    };
+
     video.addEventListener('seeked', onSeeked);
-    video.currentTime = Math.min(time, video.duration - 0.1);
+    video.addEventListener('error', onError);
+
+    // Safety timeout in case seeked doesn't fire
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        cleanup();
+        resolve();
+      }
+    }, 2500);
+
+    const safeDuration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 10;
+    const safeTime = Math.max(0, Math.min(time, safeDuration - 0.1));
+    video.currentTime = safeTime;
   });
 }
 

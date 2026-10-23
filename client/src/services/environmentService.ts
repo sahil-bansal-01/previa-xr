@@ -1,7 +1,5 @@
-import api from './api';
+import api, { formatEndpointUrl } from './api';
 import { Environment } from '../simulation/types/simulationTypes';
-
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
 
 export interface EnvironmentsResponse {
   success: boolean;
@@ -61,22 +59,33 @@ export const environmentService = {
     if (environmentId) queryParams.set('environmentId', environmentId);
     queryParams.set('type', subfolderType);
 
-    const url = environmentId
-      ? `${API_BASE_URL}/environments/${environmentId}/upload?${queryParams.toString()}`
-      : `${API_BASE_URL}/environments/upload?${queryParams.toString()}`;
+    const endpoint = environmentId
+      ? `/environments/${environmentId}/upload?${queryParams.toString()}`
+      : `/environments/upload?${queryParams.toString()}`;
 
-    const res = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: formData,
-    });
+    const url = formatEndpointUrl(endpoint);
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ message: res.statusText }));
-      throw new Error(err.message || 'File upload failed');
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        throw new Error(err.message || `File upload failed with status ${res.status}`);
+      }
+
+      return res.json();
+    } catch (err: any) {
+      if (err?.name === 'TypeError' && err?.message?.toLowerCase().includes('fetch')) {
+        throw new Error(
+          'Unable to reach backend server for upload. The server may be waking up from sleep on Render, or check your connection.'
+        );
+      }
+      throw err;
     }
-
-    return res.json();
   },
 
   async createEnvironment(envData: Partial<Environment>): Promise<Environment> {

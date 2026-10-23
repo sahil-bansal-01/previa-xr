@@ -48,6 +48,10 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
         setErrorMessage(`Unsupported file: ${f.name}. Supported formats: MP4, WebM, MOV, PNG, JPG/JPEG.`);
         continue;
       }
+      if (f.size > 100 * 1024 * 1024) {
+        setErrorMessage(`"${f.name}" exceeds the 100 MB limit (${formatFileSize(f.size)}). Please choose a smaller file.`);
+        continue;
+      }
       if (f.type.startsWith('video/') && (files.length > 0 || valid.length > 0)) {
         setErrorMessage('Only one video can be uploaded at a time.');
         continue;

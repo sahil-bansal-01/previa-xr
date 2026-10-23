@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { environmentService } from '../services/environmentService';
+import { API_SERVER_URL } from '../services/api';
 import {
   Environment,
   MapWall,
@@ -121,7 +122,7 @@ export const EnvironmentReviewPage: React.FC = () => {
             env.metadata.extractedFrames.map((f: any, idx: number) => ({
               index: f.index ?? idx,
               timestamp: f.timestamp ?? 0,
-              imageData: f.url || (f.path ? `http://localhost:5000${f.path}` : f.imageData || ''),
+              imageData: f.url || (f.path ? `${API_SERVER_URL}${f.path}` : f.imageData || ''),
             }))
           );
         }

@@ -9,7 +9,7 @@ export async function uploadFiles(req, res, next) {
       return res.status(400).json({ error: true, message: 'No files were uploaded.' });
     }
 
-    const envId = req.environmentId || req.params?.id || req.headers['x-environment-id'] || req.query?.environmentId || 'default';
+    const envId = String(req.environmentId || req.params?.id || req.headers['x-environment-id'] || req.query?.environmentId || 'default');
     const subfolder = req.query?.type === 'frame' ? 'frames' : 'original';
     const uploadedDetails = files.map(f => ({
       originalName: f.originalname,
@@ -32,13 +32,14 @@ export async function uploadFiles(req, res, next) {
         });
       } else if (subfolder === 'frames') {
         const existingFrames = env.metadata?.extractedFrames || [];
+        const baseUrl = process.env.API_BASE_URL || `${req.protocol}://${req.get('host')}`;
         const newFrames = [
           ...existingFrames,
           ...uploadedDetails.map((f, idx) => ({
             index: existingFrames.length + idx,
             filename: f.filename,
             path: f.path,
-            url: `http://localhost:5000${f.path}`
+            url: `${baseUrl}${f.path}`
           }))
         ];
         await EnvironmentModel.findByIdAndUpdate(envId, {
